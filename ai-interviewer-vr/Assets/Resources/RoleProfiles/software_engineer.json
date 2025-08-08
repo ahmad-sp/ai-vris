@@ -1,0 +1,57 @@
+{
+  "role": "Software Engineer",
+  "questions": [
+    {
+      "id": 1,
+      "question": "Can you describe your experience with object-oriented programming?",
+      "type": "technical"
+    },
+    {
+      "id": 2,
+      "question": "What is your approach to debugging and troubleshooting code?",
+      "type": "behavioral"
+    },
+    {
+      "id": 3,
+      "question": "How do you stay updated with the latest technology trends?",
+      "type": "general"
+    },
+    {
+      "id": 4,
+      "question": "Can you explain the concept of RESTful APIs?",
+      "type": "technical"
+    },
+    {
+      "id": 5,
+      "question": "Describe a challenging project you worked on and how you overcame the challenges.",
+      "type": "behavioral"
+    },
+    {
+      "id": 6,
+      "question": "What programming languages are you most comfortable with?",
+      "type": "technical"
+    },
+    {
+      "id": 7,
+      "question": "How do you prioritize tasks when working on multiple projects?",
+      "type": "behavioral"
+    },
+    {
+      "id": 8,
+      "question": "What is your experience with version control systems like Git?",
+      "type": "technical"
+    }
+  ],
+  "skills": [
+    "C#",
+    "JavaScript",
+    "Unity",
+    "API Development",
+    "Debugging",
+    "Version Control"
+  ],
+  "feedback": {
+    "positive": "You have a strong foundation in programming and problem-solving skills.",
+    "areas_of_improvement": "Consider enhancing your knowledge of design patterns and software architecture."
+  }
+}
