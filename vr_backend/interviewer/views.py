@@ -1,0 +1,266 @@
+import os
+import time
+import requests
+from dotenv import load_dotenv
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.conf import settings
+
+from .models import InterviewSession, InterviewResponse
+from .services.llm_service import generate_interviewer_text
+from .services.scoring_service import score_answer
+from .services.flow_service import get_next_step, get_remaining, is_technical_role
+from .services.report_service import generate_report
+from .services.speech_to_text import transcribe_audio
+
+load_dotenv()
+
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID")
+
+DEFAULT_SECTION_FLOW = [
+    "Greeting", "Introduction", "Resume Questions",
+    "Technical", "Behavioral/Situational", "Wrap-Up"
+]
+
+MAX_QUESTIONS = {
+    "Greeting": 2,
+    "Introduction": 3,
+    "Resume Questions": 3,
+    "Technical": 5,
+    "Behavioral/Situational": 3,
+    "Wrap-Up": 1  # Only one closing message
+}
+
+
+def text_to_speech(text, request_obj=None):
+    """Convert interviewer text to speech using ElevenLabs."""
+    if not ELEVENLABS_API_KEY or not VOICE_ID:
+        print("⚠️ Missing ElevenLabs API or Voice ID.")
+        return None
+
+    try:
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}"
+        headers = {"xi-api-key": ELEVENLABS_API_KEY, "Content-Type": "application/json"}
+        payload = {"text": text, "voice_settings": {"stability": 0.6, "similarity_boost": 0.8}}
+
+        response = requests.post(url, headers=headers, json=payload, timeout=40)
+        response.raise_for_status()
+
+        filename = f"reply_{int(time.time())}.mp3"
+        filepath = settings.MEDIA_ROOT / filename
+        with open(filepath, "wb") as f:
+            f.write(response.content)
+
+        if request_obj:
+            return request_obj.build_absolute_uri(settings.MEDIA_URL + filename)
+        return filename
+    except Exception as e:
+        print("🛑 ElevenLabs Error:", e)
+        return None
+
+
+class InterviewStep(APIView):
+    """Main endpoint controlling each voice-driven interview step."""
+
+    def post(self, request):
+        candidate_name = request.data.get("candidate_name", "Anonimus")
+        role = request.data.get("role")
+        session_id = request.data.get("session_id")
+        answer = request.data.get("answer")
+
+        try:
+            # 🟢 Load or create session
+            if session_id:
+                session = InterviewSession.objects.get(id=session_id)
+            else:
+                if not role:
+                    return Response({"error": "Role is required."}, status=status.HTTP_400_BAD_REQUEST)
+                if not is_technical_role(role):
+                    return Response(
+                        {"error": "Role not recognized as technical. Please use a valid technical/IT role."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                session = InterviewSession.objects.create(
+                    candidate_name=candidate_name, role=role, current_step="Greeting", completed=False
+                )
+
+            current_step = session.current_step
+            asked_questions = session.responses.filter(step=current_step).count()
+            max_questions = MAX_QUESTIONS.get(current_step, 3)
+
+            # 💬 Save last answer (if any)
+            if answer:
+                last_response = session.responses.last()
+                if last_response:
+                    score, relevance = score_answer(last_response.question, answer)
+                    last_response.answer = answer
+                    last_response.score = score
+                    last_response.relevance = relevance
+                    last_response.save()
+
+            # 🧱 Handle completion early
+            if session.completed:
+                return Response({
+                    "session_id": session.id,
+                    "step": "Completed",
+                    "question": "Interview already completed.",
+                    "audio_url": None,
+                    "remaining_sections": 0,
+                    "remaining_questions": 0,
+                    "report_url": request.build_absolute_uri(f"/api/report/{session.id}/"),
+                })
+
+            # 🧠 Generate interviewer text dynamically
+            interviewer_text = generate_interviewer_text(session.role, current_step, answer)
+
+            # 🚪 If Exit or Wrap-Up step, close interview gracefully
+            if current_step in ["Wrap-Up", "Exit"]:
+                interviewer_text = generate_interviewer_text(session.role, "Exit")
+                session.completed = True
+                session.save()
+                audio_url = text_to_speech(interviewer_text, request_obj=request)
+
+                return Response({
+                    "session_id": session.id,
+                    "step": "Exit",
+                    "question": interviewer_text,
+                    "audio_url": audio_url,
+                    "remaining_sections": 0,
+                    "remaining_questions": 0,
+                    "report_url": request.build_absolute_uri(f"/api/report/{session.id}/"),
+                })
+
+            # 🗣️ Store interviewer question and convert to speech
+            InterviewResponse.objects.create(session=session, step=current_step, question=interviewer_text)
+            audio_url = text_to_speech(interviewer_text, request_obj=request)
+
+            # 🔁 Move to next step if section done
+            asked_questions += 1
+            if asked_questions >= max_questions:
+                next_step = get_next_step(current_step, session.role)
+                session.current_step = next_step
+                if next_step == "Exit":
+                    session.completed = True
+            session.save()
+
+            # 🧾 Calculate remaining
+            remaining_sections, remaining_questions = get_remaining(session)
+            report_url = None
+            if session.completed:
+                report_url = request.build_absolute_uri(f"/api/report/{session.id}/")
+
+            return Response({
+                "session_id": session.id,
+                "step": session.current_step,
+                "question": interviewer_text,
+                "audio_url": audio_url,
+                "remaining_sections": remaining_sections,
+                "remaining_questions": remaining_questions,
+                "report_url": report_url,
+            })
+
+        except InterviewSession.DoesNotExist:
+            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            print("🔥 Internal Error:", str(e))
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class RestartInterviewView(APIView):
+    """Restart the interview with a blank session."""
+    def post(self, request):
+        restart_flag = request.data.get("restart", False)
+        if not restart_flag:
+            return Response({"error": "restart flag required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        session = InterviewSession.objects.create(
+            candidate_name="", role="", current_step="Role Selection", completed=False
+        )
+        return Response(
+            {"message": "Fresh interview session started.", "session_id": session.id},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class InterviewReport(APIView):
+    """GET /api/report/{session_id}/"""
+    def get(self, request, session_id):
+        try:
+            session = InterviewSession.objects.get(id=session_id)
+            if not session.completed:
+                return Response(
+                    {"error": "Interview not completed yet."}, status=status.HTTP_400_BAD_REQUEST
+                )
+            report_text = generate_report(session)
+            return Response({
+                "candidate": session.candidate_name,
+                "role": session.role,
+                "report": report_text
+            })
+        except InterviewSession.DoesNotExist:
+            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+class SessionList(APIView):
+    """List all sessions."""
+    def get(self, request):
+        sessions = InterviewSession.objects.all().order_by("-id")
+        data = [
+            {
+                "session_id": s.id,
+                "candidate_name": s.candidate_name,
+                "role": s.role,
+                "completed": s.completed,
+                "report": generate_report(s) if s.completed else None,
+            }
+            for s in sessions
+        ]
+        return Response(data)
+
+
+class SessionDetail(APIView):
+    """GET /api/interview/sessions/<session_id>/"""
+    def get(self, request, session_id):
+        try:
+            session = InterviewSession.objects.get(id=session_id)
+            report_text = generate_report(session) if session.completed else None
+            return Response({
+                "session_id": session.id,
+                "candidate_name": session.candidate_name,
+                "role": session.role,
+                "completed": session.completed,
+                "report": report_text
+            })
+        except InterviewSession.DoesNotExist:
+            return Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
+
+class AudioToTextView(APIView):
+    """
+    Endpoint to receive audio from Unity VR, convert to text, and return.
+    """
+
+    def post(self, request):
+        audio_file = request.FILES.get("audio")
+        if not audio_file:
+            print("❌ No file received.")
+            return Response({"error": "No audio file provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        print(f"🎤 Audio file received: {audio_file.name}")
+        print(f"📏 File size: {audio_file.size} bytes")
+        
+        # Save temp file
+        temp_path = f"/tmp/{audio_file.name}"
+        with open(temp_path, "wb+") as f:
+            for chunk in audio_file.chunks():
+                f.write(chunk)
+
+        try:
+            text = transcribe_audio(temp_path)
+            return Response({"transcript": text}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print("STT Error:", e)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

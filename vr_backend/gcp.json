@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "yit-workshop-471805",
+  "private_key_id": "478bcc5c23d5d8fe3ba651f390097944f039dbe2",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQClAEIIga4jBCGZ\nWOOm2VYXsoaUVZKV0SDlXsdbl0fxz5Lr8tWwv6WZ6d2nRNODYJx2jVFiuYvOuJua\n9f9NAB0OaM34EO5OyggaYzhjTcD8tWlCoG8MqDGdTB8OCpX3BkBYd1plbd8ctmSi\ni+LdPv+PsFcIbGHXBWgMi45q4IQuzOHNv26UyFF6KGPGhGSxLJ44Mh9Nhfx4UArj\nqJdUmPSqYgHA4jN1RsWBThpIqHmQ/jagK1S3kvvZBKhYSbEVHTIPLo23uek2RK19\nPDaPLAc32XfA6DHfpYUAg/3oLIHdnEut9My7qmpUxboR3dQKPnjjaDNI9o+VkG0K\nx7SrMG6dAgMBAAECggEAGphxjFR2wI8kaUbCHv0uGtC8T4GBiKN2RXJi+NjoEEpw\neJaiKgSiCS6AezslSqpSXeuGYD7fEZmA/1fCaGNpy45KEL+N4eY/qx0uFBeO0Uze\nZA5fB+++W4fPA6DiLjh0O641RF8S1NpzWx3oGdhTMhJu3N03YgStkkQWVxTMSYyb\nK7U4DPwLI8AkY8SUJgzUo8pajFour4CC2MmHzsTHxxA9AyiIEoB5s++IMtphnJoc\nnz2EKQwZEHufxqi5wZfEBOz9M2Sb23/qjOzRwYNag19+EakNLFTbmOKhM4swr/2f\nPqezxjyN2lT6g9Y6okivyksWRD5WMCMLjnJy0MPfgwKBgQDejvP5qOL+bAMd0qyL\nfaauadEf9RAL80uck04WJRCXdNJCjz2fztW8TiQo3k+7bBRVZBLFVrD0HFEzdkkx\nSQyCsgTpc2EfurUOwgv4105SX27x1VuE0IDIThBj0J/GChvWJc10HX9fwzDw7pwc\nW5tNcF6kgLGj6pRhEWhCxAVC5wKBgQC9y0WnAk9xnqw0+n8LJS1Le2BSoliEn6Vp\nWcifl7O6/Ozj0Ijb8MeGBXChqa5phKJPa4TwTWeCs1FWXWdHgUoX9HUwdz5gqpGw\n3MSyU3jwbqg2krDyYmybHUumQOJWCY+sL5Dv5wuL6Q8vaUzgzsCWppMiiyKt1aGl\n1qUTewrV2wKBgFkAEdDlGOFlkFl8xkOCHAXjix2cgq5EvRgAUFnKuLfYn7y+S4Z8\n0Dxdg1hUjs4Eip0bR+ZipKD6Mf7CbsKm07nwNsakvVJS99TPBLqeX1PRlixfhhm2\nx8lSbnt8Emi/4iHhPCgTI7zH8epngUZV2+U76p0eWeuTA4NN0sPgX7pBAoGBAK7B\nVEkK34uGxpmhbQkeGi6+U1rDES5MsUnn2crZLCyoZpb9lIavlYfZynOQgX+3GJx4\nK9f37a9y3RngtxAoA8k61gziPxVS+QMYxCROp7T6rvhQ6YzFA6tvthBG/iCqfRfW\nVGYRH5ib59eH5bm5pasRhbjw0+WsJ0ND+IuPZ9KxAoGACpCeEDnj3jOmgdyl6Ncg\n8DKf/Fd2Lr3XRXHBG/Cr+2//AX8gKOpfJBfX6aGsMzavvYImLdLtG23cpKDQu/Q1\nWt6M8MmSCmq8o1U1WI9beMbv85T7kUKXNoS9tvZnxVRtJRpW5G0CYXti3ul+uq7e\nh+cwtmZoP0300aYJWUGr2rI=\n-----END PRIVATE KEY-----\n",
+  "client_email": "vertexai-demo@yit-workshop-471805.iam.gserviceaccount.com",
+  "client_id": "117474161156060162015",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/vertexai-demo%40yit-workshop-471805.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
