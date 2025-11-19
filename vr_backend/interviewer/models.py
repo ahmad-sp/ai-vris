@@ -21,3 +21,11 @@ class InterviewResponse(models.Model):
 
     def __str__(self):
         return f"{self.step} - {self.score}"
+
+class InterviewReport(models.Model):
+    session = models.OneToOneField(InterviewSession, on_delete=models.CASCADE, related_name="report")
+    content = models.TextField()
+    generated_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Report for {self.session.candidate_name} - {self.session.role}"

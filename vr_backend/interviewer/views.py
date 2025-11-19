@@ -139,13 +139,16 @@ class InterviewStep(APIView):
             audio_url = text_to_speech(interviewer_text, request_obj=request)
 
             # 🔁 Move to next step if section done
-            asked_questions += 1
-            if asked_questions >= max_questions:
+            if asked_questions + 1 >= max_questions:  # If next question would exceed max
                 next_step = get_next_step(current_step, session.role)
                 session.current_step = next_step
                 if next_step == "Exit":
                     session.completed = True
-            session.save()
+                session.save()  # Save immediately after updating step
+            else:
+                # Still in same section, just increment counter
+                asked_questions += 1
+                session.save()
 
             # 🧾 Calculate remaining
             remaining_sections, remaining_questions = get_remaining(session)
@@ -191,13 +194,11 @@ class InterviewReport(APIView):
     def get(self, request, session_id):
         try:
             session = InterviewSession.objects.get(id=session_id)
-            if not session.completed:
-                return Response(
-                    {"error": "Interview not completed yet."}, status=status.HTTP_400_BAD_REQUEST
-                )
+            # Generate report even if interview is not marked as completed
             report_text = generate_report(session)
             return Response({
                 "candidate": session.candidate_name,
+                "status": "completed" if session.completed else "incomplete",
                 "role": session.role,
                 "report": report_text
             })
@@ -238,29 +239,57 @@ class SessionDetail(APIView):
         except InterviewSession.DoesNotExist:
             return Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
 
+class InterruptInterviewView(APIView):
+    """Endpoint to handle interrupted interviews and generate a report."""
+    def post(self, request, session_id):
+        try:
+            session = InterviewSession.objects.get(id=session_id)
+            
+            # Mark session as completed to prevent further interactions
+            session.completed = True
+            session.save()
+            
+            # Generate the report
+            report = generate_report(session)
+            
+            return Response({
+                "message": "Interview interrupted successfully",
+                "report_url": request.build_absolute_uri(f"/api/report/{session.id}/")
+            }, status=status.HTTP_200_OK)
+            
+        except InterviewSession.DoesNotExist:
+            return Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            print(f"Error interrupting interview: {str(e)}")
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class AudioToTextView(APIView):
     """
     Endpoint to receive audio from Unity VR, convert to text, and return.
     """
 
     def post(self, request):
-        audio_file = request.FILES.get("audio")
-        if not audio_file:
-            print("❌ No file received.")
+        audio_data = request.FILES.get('audio')
+        if not audio_data:
             return Response({"error": "No audio file provided"}, status=status.HTTP_400_BAD_REQUEST)
 
-        print(f"🎤 Audio file received: {audio_file.name}")
-        print(f"📏 File size: {audio_file.size} bytes")
-        
-        # Save temp file
-        temp_path = f"/tmp/{audio_file.name}"
-        with open(temp_path, "wb+") as f:
-            for chunk in audio_file.chunks():
-                f.write(chunk)
-
         try:
-            text = transcribe_audio(temp_path)
-            return Response({"transcript": text}, status=status.HTTP_200_OK)
+            # Save the audio file temporarily
+            temp_audio_path = os.path.join(settings.MEDIA_ROOT, 'temp_audio.wav')
+            with open(temp_audio_path, 'wb+') as destination:
+                for chunk in audio_data.chunks():
+                    destination.write(chunk)
+
+            # Transcribe the audio
+            text = transcribe_audio(temp_audio_path)
+            
+            # Clean up the temporary file
+            if os.path.exists(temp_audio_path):
+                os.remove(temp_audio_path)
+                
+            return Response({"text": text}, status=status.HTTP_200_OK)
+            
         except Exception as e:
-            print("STT Error:", e)
+            print(f"Error in audio processing: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

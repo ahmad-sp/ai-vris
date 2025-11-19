@@ -1,8 +1,9 @@
 from django.urls import path
-from .views import InterviewStep, InterviewReport, RestartInterviewView, SessionList, SessionDetail,AudioToTextView
+from .views import InterviewStep, InterviewReport, RestartInterviewView, SessionList, SessionDetail, AudioToTextView, InterruptInterviewView
 
 urlpatterns = [
     path("interview/", InterviewStep.as_view(), name="interview"),
+    path("interview/<int:session_id>/interrupt/", InterruptInterviewView.as_view(), name="interview-interrupt"),
     path("report/<int:session_id>/", InterviewReport.as_view(), name="interview-report"),
     path("interview/restart/", RestartInterviewView.as_view(), name="interview-restart"),
     path("interview/sessions/", SessionList.as_view(), name="interview-sessions"),

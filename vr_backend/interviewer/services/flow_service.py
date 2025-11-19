@@ -14,8 +14,77 @@ STEPS_ORDER = [
 
 
 def is_technical_role(role_name):
-    """Use AI to decide if a role is technical."""
-    prompt = f"Is '{role_name}' a technical/IT role like software engineer, data scientist, AI engineer, etc.? Answer only Yes or No."
+    """Decide if a role is technical using deterministic checks first, then LLM as fallback."""
+    if not role_name:
+        return False
+
+    role_l = role_name.strip().lower()
+
+    # Common technical roles allowlist (exact match)
+    ALLOWLIST = {
+        "software engineer",
+        "backend engineer",
+        "frontend engineer",
+        "full stack developer",
+        "full-stack developer",
+        "data scientist",
+        "ml engineer",
+        "machine learning engineer",
+        "ai engineer",
+        "devops engineer",
+        "site reliability engineer",
+        "sre",
+        "mobile developer",
+        "android developer",
+        "ios developer",
+        "cloud engineer",
+        "security engineer",
+        "qa engineer",
+        "test engineer",
+        "systems engineer",
+        "network engineer",
+        "it support engineer",
+        "data engineer",
+        "data analyst",
+        "ml researcher",
+    }
+
+    if role_l in ALLOWLIST:
+        return True
+
+    # Keyword heuristics (substring matches)
+    KEYWORDS = [
+        "engineer",
+        "developer",
+        "scientist",
+        "ml",
+        "ai",
+        "devops",
+        "sre",
+        "cloud",
+        "backend",
+        "front-end",
+        "frontend",
+        "full stack",
+        "mobile",
+        "android",
+        "ios",
+        "security",
+        "qa",
+        "test",
+        "systems",
+        "network",
+        "data",
+        "it",
+    ]
+    if any(k in role_l for k in KEYWORDS):
+        return True
+
+    # Fallback: ask LLM
+    prompt = (
+        f"Is '{role_name}' a technical/IT role like software engineer, data scientist, AI engineer, etc.? "
+        f"Answer only Yes or No."
+    )
     try:
         response = ask_llm(prompt).strip().lower()
         return response.startswith("yes")
@@ -40,7 +109,13 @@ def get_remaining(session):
 
     steps = STEPS_ORDER
     current_index = steps.index(session.current_step)
-    remaining_sections = max(len(steps) - current_index - 2, 0)
+    remaining_sections = max(len(steps) - current_index - 2, 0)  # -2 for current and Exit steps
+    
+    # Get the max questions for the current section from views.py
+    from interviewer.views import MAX_QUESTIONS
+    max_questions = MAX_QUESTIONS.get(session.current_step, 3)
+    
     asked = session.responses.filter(step=session.current_step).count()
-    remaining_questions = max(3 - asked, 0)
+    remaining_questions = max(max_questions - asked, 0)
+    
     return remaining_sections, remaining_questions

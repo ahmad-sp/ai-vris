@@ -3,6 +3,7 @@ using UnityEngine.Networking;
 using System.Collections;
 using System.IO;
 using System;
+using UnityEngine.Events;
 
 /// <summary>
 /// Voice-activated recorder with silence detection (VAD), WAV saving (SavWav required),
@@ -17,7 +18,11 @@ public class VADVoiceRecorder : MonoBehaviour
     public float silenceSecondsToStop = 4.0f;   // seconds of continuous silence to auto-stop
     public float preSpeechBuffer = 0.3f;        // seconds to include before voice detection (small padding)
     public bool autoUpload = true;              // upload automatically after save
-    public bool sendTranscriptToInterview = true;
+    public bool sendTranscriptToInterview = false;
+    public bool autoStartOnAwake = false;
+
+    [Header("Events")]
+    public UnityEvent<string> onTranscript; // fired when transcript is parsed
 
     [Header("API endpoints (use your machine IP)")]
     public string sttUploadUrl = "http://192.168.133.1:8000/api/audio-to-text/"; // change to your host/IP
@@ -35,7 +40,8 @@ public class VADVoiceRecorder : MonoBehaviour
     {
         savePath = Path.Combine(Application.persistentDataPath, "candidate_audio.wav");
         Debug.Log("[VAD] Save path: " + savePath);
-        StartListening();
+        if (autoStartOnAwake)
+            StartListening();
     }
 
     void OnDestroy()
@@ -222,6 +228,10 @@ public class VADVoiceRecorder : MonoBehaviour
             if (!string.IsNullOrEmpty(transcript))
             {
                 Debug.Log("[VAD] Transcript: " + transcript);
+                if (onTranscript != null)
+                {
+                    onTranscript.Invoke(transcript);
+                }
 
                 if (sendTranscriptToInterview)
                 {
@@ -258,12 +268,16 @@ public class VADVoiceRecorder : MonoBehaviour
 
     IEnumerator PostTranscriptToInterview(string transcript)
     {
-        WWWForm form = new WWWForm();
-        // send minimal payload: { "answer": "<transcript>" } optionally session_id
-        // If you have session management, add "session_id" to continue existing session
-        form.AddField("answer", transcript);
+        // Use JSON to include session_id
+        int sessionId = PlayerPrefs.GetInt("session_id", 0);
+        var payload = new InterviewAnswer { session_id = sessionId, answer = transcript };
+        var json = JsonUtility.ToJson(payload);
 
-        using (UnityWebRequest www = UnityWebRequest.Post(interviewStepUrl, form))
+        var www = new UnityWebRequest(interviewStepUrl, UnityWebRequest.kHttpVerbPOST);
+        byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(json);
+        www.uploadHandler = new UploadHandlerRaw(bodyRaw);
+        www.downloadHandler = new DownloadHandlerBuffer();
+        www.SetRequestHeader("Content-Type", "application/json");
         {
             www.timeout = 60;
             yield return www.SendWebRequest();
@@ -284,6 +298,12 @@ public class VADVoiceRecorder : MonoBehaviour
             // Example: response JSON contains "audio_url": "http://.../reply_x.mp3"
             string resp = www.downloadHandler.text;
             string audioUrl = ExtractJsonField(resp, "audio_url");
+            string nextQuestion = ExtractJsonField(resp, "question");
+            if (!string.IsNullOrEmpty(nextQuestion))
+            {
+                // also broadcast next question via transcript event for manager reuse if desired
+                // (manager can have a separate event for question; kept minimal here)
+            }
             if (!string.IsNullOrEmpty(audioUrl))
             {
                 Debug.Log("[VAD] Received audio URL: " + audioUrl);
@@ -291,6 +311,13 @@ public class VADVoiceRecorder : MonoBehaviour
                 StartCoroutine(PlayAudioFromUrl(audioUrl));
             }
         }
+    }
+
+    [Serializable]
+    public class InterviewAnswer
+    {
+        public int session_id;
+        public string answer;
     }
 
     string ExtractJsonField(string json, string fieldName)
