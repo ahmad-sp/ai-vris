@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Networking;
 using TMPro;
+using UnityEngine.UI;
 
 public class InterviewSessionManager : MonoBehaviour
 {
@@ -11,7 +12,18 @@ public class InterviewSessionManager : MonoBehaviour
 
     [Header("UI & Audio")]
     public TextMeshProUGUI questionText; // display interviewer question
+    public TextMeshProUGUI metaCombinedText;
     public AudioSource questionAudioSource; // play interviewer TTS audio
+
+    [Header("Report UI")]
+    [Tooltip("Panel or tab to show after the interview ends.")]
+    [Header("Scroll View")]
+    public ScrollRect reportScrollRect;
+    public GameObject reportTab;
+    [Tooltip("Text element that displays the generated report.")]
+    public TextMeshProUGUI reportText;
+    [Tooltip("Query string appended to report_url, e.g. '?format=text'. Leave blank to use raw URL.")]
+    public string reportFormatQuery = "?format=text";
 
     [Header("Events")]
     public UnityEvent<string> onQuestionReceived; // forward question to phoneme bridge
@@ -21,6 +33,7 @@ public class InterviewSessionManager : MonoBehaviour
     public string interviewPath = "/api/interview/";
 
     private bool isPlayingTts = false;
+    private Coroutine reportFetchRoutine;
 
     private void Awake()
     {
@@ -110,6 +123,12 @@ public class InterviewSessionManager : MonoBehaviour
             yield break;
         }
 
+        if (metaCombinedText != null)
+        {
+            var stepVal = string.IsNullOrEmpty(resp.step) ? "" : resp.step;
+            metaCombinedText.text = $" section:{stepVal}\n remaining question:{resp.remaining_questions} \n remaining section:{resp.remaining_sections}";
+        }
+
         // Display and phonemes
         if (questionText != null && !string.IsNullOrEmpty(resp.question))
             questionText.text = resp.question;
@@ -126,6 +145,7 @@ public class InterviewSessionManager : MonoBehaviour
         if (!string.IsNullOrEmpty(resp.step) && resp.step == "Exit")
         {
             Debug.Log("[Interview] Completed.");
+            HandleInterviewCompleted(resp.report_url);
             yield break;
         }
 
@@ -179,7 +199,7 @@ public class InterviewSessionManager : MonoBehaviour
 
         if (req.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogError($"[Interview] Failed to end interview: {req.error} - {req.downloadHandler.text}");
+            Debug.LogError($"[Interview] Failed to end interview: {req.error} - {req.downloadHandler?.text}");
             yield break;
         }
 
@@ -189,7 +209,204 @@ public class InterviewSessionManager : MonoBehaviour
             vad.StopListening();
 
         if (questionText != null)
-            questionText.text = "Interview ended. Thank you!";
+            questionText.text = "Interview ended. Generating report (this may take ~25 seconds)...";
+
+        string reportUrl = null;
+        var body = req.downloadHandler != null ? req.downloadHandler.text : null;
+        if (!string.IsNullOrEmpty(body))
+        {
+            try
+            {
+                var interruptResp = JsonUtility.FromJson<InterruptResponse>(body);
+                reportUrl = interruptResp != null ? interruptResp.report_url : null;
+            }
+            catch
+            {
+                Debug.LogWarning("[Interview] Could not parse interrupt response for report URL: " + body);
+            }
+        }
+
+        // Show the report tab immediately with a loading message
+        if (reportTab != null)
+            reportTab.SetActive(true);
+
+        // Show 10-second countdown
+        for (int i = 10; i > 0; i--)
+        {
+            if (reportText != null)
+                reportText.text = $"Generating your report...\nStarting in {i} seconds";
+            yield return new WaitForSeconds(1f);
+        }
+
+        if (reportText != null)
+            reportText.text = "Finalizing your report...";
+
+        // Wait a bit more for the final message to be visible
+        yield return new WaitForSeconds(1f);
+
+        // Now handle the interview completion with the report URL
+        HandleInterviewCompleted(reportUrl);
+    }
+
+    private void HandleInterviewCompleted(string reportUrl)
+    {
+        if (vad != null)
+            vad.StopListening();
+
+        if (questionText != null)
+            questionText.text = "Interview completed. Preparing your report...";
+
+        if (reportTab != null)
+            reportTab.SetActive(true);
+
+        if (reportText != null)
+            reportText.text = "Preparing your report...";
+
+        if (reportFetchRoutine != null)
+        {
+            StopCoroutine(reportFetchRoutine);
+            reportFetchRoutine = null;
+        }
+        if (reportScrollRect != null)
+        {
+            reportScrollRect.normalizedPosition = new Vector2(0, 1); // Top
+        }
+
+        // Get the session ID from PlayerPrefs
+        int sessionId = PlayerPrefs.GetInt("session_id", 0);
+        if (sessionId == 0)
+        {
+            Debug.LogError("[Report] No session ID found in PlayerPrefs");
+            if (reportText != null)
+                reportText.text = "Error: Could not find interview session. Please try again.";
+            return;
+        }
+
+        // Construct the report URL using the base URL and session ID
+        string finalUrl = $"{backendBaseUrl.TrimEnd('/')}/api/report/{sessionId}/";
+        Debug.Log($"[Report] Fetching report from: {finalUrl}");
+
+        reportFetchRoutine = StartCoroutine(FetchAndDisplayReport(finalUrl));
+    }
+
+    [System.Serializable]
+    private class ReportResponse
+    {
+        public string report;
+    }
+
+    private IEnumerator FetchAndDisplayReport(string url)
+    {
+        Debug.Log($"[Report] Starting to fetch report from: {url}");
+        
+        using (var req = UnityWebRequest.Get(url))
+        {
+            // Set a reasonable timeout (30 seconds)
+            req.timeout = 30;
+            
+            if (reportText != null)
+                reportText.text = "Fetching your report...";
+
+            // Send the request
+            yield return req.SendWebRequest();
+
+            // Check for network errors
+            if (req.result == UnityWebRequest.Result.ConnectionError || 
+                req.result == UnityWebRequest.Result.ProtocolError)
+            {
+                string errorMsg = $"Error loading report: {req.error}\n";
+                errorMsg += $"Status: {req.responseCode}\n";
+                errorMsg += $"URL: {url}\n";
+                errorMsg += "Please check your connection and try again.";
+                
+                Debug.LogError($"[Report] {errorMsg}");
+                
+                if (reportText != null)
+                    reportText.text = errorMsg;
+                
+                yield break;
+            }
+
+            // Check for HTTP errors
+            if (req.responseCode >= 400)
+            {
+                string errorMsg = $"Server error: {req.responseCode}\n";
+                errorMsg += $"Response: {req.downloadHandler?.text}\n";
+                errorMsg += "Please try again later or contact support if the problem persists.";
+                
+                Debug.LogError($"[Report] {errorMsg}");
+                
+                if (reportText != null)
+                    reportText.text = errorMsg;
+                
+                yield break;
+            }
+
+            // Parse the JSON response
+            string jsonResponse = req.downloadHandler?.text;
+            if (string.IsNullOrEmpty(jsonResponse))
+            {
+                string errorMsg = "Error: Received empty response from server.";
+                Debug.LogError($"[Report] {errorMsg}");
+                
+                if (reportText != null)
+                    reportText.text = errorMsg;
+                
+                yield break;
+            }
+
+            try
+            {
+                // Parse the JSON to extract just the report
+                var response = JsonUtility.FromJson<ReportResponse>(jsonResponse);
+                if (response == null || string.IsNullOrEmpty(response.report))
+                {
+                    throw new System.Exception("Could not parse report from response");
+                }
+
+                // Clean up the report text - replace \n with actual newlines
+                string cleanReport = response.report;
+                cleanReport = cleanReport.Replace("\n", "\n\n"); // Double newlines for paragraph spacing
+                cleanReport = cleanReport.Replace("\n\n\n", "\n\n"); // Remove triple newlines
+                cleanReport = cleanReport.Trim();
+
+                Debug.Log($"[Report] Successfully parsed report ({cleanReport.Length} characters)");
+                
+                if (reportText != null)
+                    reportText.text = cleanReport;
+            }
+            catch (System.Exception ex)
+            {
+                string errorMsg = $"Error parsing report: {ex.Message}\n\nRaw response:\n{jsonResponse}";
+                Debug.LogError($"[Report] {errorMsg}");
+                
+                if (reportText != null)
+                    reportText.text = errorMsg;
+            }
+        }
+
+        reportFetchRoutine = null;
+    }
+
+    private string AppendFormatQuery(string baseUrl, string query)
+    {
+        if (string.IsNullOrEmpty(baseUrl) || string.IsNullOrEmpty(query))
+            return baseUrl;
+
+        var trimmed = query.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+            return baseUrl;
+
+        if (trimmed.StartsWith("?"))
+        {
+            if (baseUrl.Contains("?"))
+                return baseUrl + "&" + trimmed.Substring(1);
+            return baseUrl + trimmed;
+        }
+
+        if (baseUrl.Contains("?"))
+            return baseUrl + "&" + trimmed;
+        return baseUrl + "?" + trimmed;
     }
 
     [System.Serializable]
@@ -210,5 +427,12 @@ public class InterviewSessionManager : MonoBehaviour
         public int remaining_questions;
         public string report_url;
         public string error;
+    }
+
+    [System.Serializable]
+    private class InterruptResponse
+    {
+        public string message;
+        public string report_url;
     }
 }

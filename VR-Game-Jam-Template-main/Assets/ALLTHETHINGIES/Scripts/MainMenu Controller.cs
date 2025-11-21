@@ -12,19 +12,25 @@ public class MainMenuController : MonoBehaviour
     public string reportsSceneName = "ReportsScene";
 
     [Header("Panels (if not using separate reports scene)")]
-    public bool useSceneForReports = false;   // if true, Reports loads reportsSceneName; else opens reportsPanel
-    public GameObject reportsPanel;           // world-space panel that shows reports
-    public GameObject optionsPanel;           // options popup
-    public GameObject helpPanel;              // help popup
+    public bool useSceneForReports = false;
+    public GameObject reportsPanel;
+    public GameObject optionsPanel;
+    public GameObject helpPanel;
+
+    [Header("Buttons (optional - assign to ensure runtime hookup)")]
+    public Button startUIButton;
+    public Button reportsUIButton;
+    public Button optionsUIButton;
+    public Button helpUIButton;
+    public Button quitUIButton;
 
     [Header("Reports fetch (optional)")]
-    [Tooltip("If non-empty and useSceneForReports==false, this will fetch recent report JSON when opening reportsPanel.")]
-    public string reportEndpoint = "";        // e.g. https://yourserver/api/reports/latest
-    public TextMeshProUGUI recentReportText;  // place to show a short summary
+    public string reportEndpoint = "";
+    public TextMeshProUGUI recentReportText;
 
     [Header("UI / Audio (optional)")]
     public AudioSource uiClickSound;
-    public float panelAnimationDuration = 0.15f; // if you want to animate panels (simple fade or scale)
+    public float panelAnimationDuration = 0.15f;
 
     void Start()
     {
@@ -32,13 +38,41 @@ public class MainMenuController : MonoBehaviour
         if (reportsPanel != null) reportsPanel.SetActive(false);
         if (optionsPanel != null) optionsPanel.SetActive(false);
         if (helpPanel != null) helpPanel.SetActive(false);
+
+        // Safe programmatic hookup for buttons (prevents inspector-wiring mistakes)
+        if (startUIButton != null)
+        {
+            startUIButton.onClick.RemoveAllListeners();
+            startUIButton.onClick.AddListener(OnStartButtonPressed);
+        }
+        if (reportsUIButton != null)
+        {
+            reportsUIButton.onClick.RemoveAllListeners();
+            reportsUIButton.onClick.AddListener(OnReportsButtonPressed);
+        }
+        if (optionsUIButton != null)
+        {
+            optionsUIButton.onClick.RemoveAllListeners();
+            optionsUIButton.onClick.AddListener(OnOptionsButtonPressed);
+        }
+        if (helpUIButton != null)
+        {
+            helpUIButton.onClick.RemoveAllListeners();
+            helpUIButton.onClick.AddListener(OnHelpButtonPressed);
+        }
+        if (quitUIButton != null)
+        {
+            quitUIButton.onClick.RemoveAllListeners();
+            quitUIButton.onClick.AddListener(OnQuitButtonPressed);
+        }
     }
 
     // ------------------------------
-    // Button handlers (wire these in Inspector)
+    // Button handlers (wire these in Inspector or via the button fields above)
     // ------------------------------
     public void OnStartButtonPressed()
     {
+        Debug.Log("[MainMenu] OnStartButtonPressed called");
         PlayClick();
         if (!string.IsNullOrEmpty(startSceneName))
             SceneManager.LoadScene(startSceneName);
@@ -48,20 +82,47 @@ public class MainMenuController : MonoBehaviour
 
     public void OnReportsButtonPressed()
     {
+        Debug.Log($"[MainMenu] OnReportsButtonPressed called. useSceneForReports={useSceneForReports}");
         PlayClick();
+
         if (useSceneForReports)
         {
-            if (!string.IsNullOrEmpty(reportsSceneName))
-                SceneManager.LoadScene(reportsSceneName);
-            else
-                Debug.LogWarning("Reports scene name not set in MainMenuController.");
-        }
-        else
-        {
-            TogglePanel(reportsPanel, true);
-            // optionally fetch latest report when opening
-            if (!string.IsNullOrEmpty(reportEndpoint) && recentReportText != null)
+            if (string.IsNullOrEmpty(reportsSceneName))
             {
+                Debug.LogWarning("[MainMenu] reportsSceneName is empty.");
+                return;
+            }
+            // Extra guard: check if scene is in build
+            if (!Application.CanStreamedLevelBeLoaded(reportsSceneName))
+            {
+                Debug.LogError($"[MainMenu] Reports scene '{reportsSceneName}' is not in Build Settings.");
+                return;
+            }
+            SceneManager.LoadScene(reportsSceneName);
+            return;
+        }
+
+        // using panel
+        if (reportsPanel == null)
+        {
+            Debug.LogError("[MainMenu] reportsPanel is null! Assign it in Inspector.");
+            return;
+        }
+
+        // toggle open
+        TogglePanel(reportsPanel, true);
+        Debug.Log("[MainMenu] reportsPanel.SetActive(true) called.");
+
+        // optionally fetch latest report when opening
+        if (!string.IsNullOrEmpty(reportEndpoint))
+        {
+            if (recentReportText == null)
+            {
+                Debug.LogWarning("[MainMenu] reportEndpoint provided but recentReportText is not assigned. Skipping fetch.");
+            }
+            else
+            {
+                Debug.Log("[MainMenu] Starting FetchLatestReportCoroutine...");
                 StartCoroutine(FetchLatestReportCoroutine(reportEndpoint));
             }
         }
@@ -69,18 +130,21 @@ public class MainMenuController : MonoBehaviour
 
     public void OnOptionsButtonPressed()
     {
+        Debug.Log("[MainMenu] OnOptionsButtonPressed");
         PlayClick();
         TogglePanel(optionsPanel);
     }
 
     public void OnHelpButtonPressed()
     {
+        Debug.Log("[MainMenu] OnHelpButtonPressed");
         PlayClick();
         TogglePanel(helpPanel);
     }
 
     public void OnQuitButtonPressed()
     {
+        Debug.Log("[MainMenu] OnQuitButtonPressed");
         PlayClick();
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
@@ -98,28 +162,21 @@ public class MainMenuController : MonoBehaviour
             uiClickSound.Play();
     }
 
-    /// <summary>
-    /// Toggle a panel (activate/deactivate). If activate == true, will open; if false, will close.
-    /// If activate is omitted, it toggles the current active state.
-    /// </summary>
     public void TogglePanel(GameObject panel, bool? activate = null)
     {
-        if (panel == null) return;
+        if (panel == null)
+        {
+            Debug.LogWarning("[MainMenu] TogglePanel called with null panel.");
+            return;
+        }
 
-        bool target;
-        if (activate.HasValue) target = activate.Value;
-        else target = !panel.activeSelf;
-
+        bool target = activate.HasValue ? activate.Value : !panel.activeSelf;
+        Debug.Log($"[MainMenu] TogglePanel {panel.name} -> active={target}");
         panel.SetActive(target);
-        // Optional: animate (scale/fade) here if needed
-        // Example: StartCoroutine(AnimatePanelScale(panel, target));
     }
 
-    // ------------------------------
-    // Optional: fetch a simple report JSON
-    // Expected JSON shape (example):
-    // { "sessionId":"abc123", "overallScore":82, "topIssues":["fillers","pace"], "summary":"Good answers but use less filler words" }
-    // ------------------------------
+    // ... keep FetchLatestReportCoroutine and SimpleReport as you had them ...
+
     IEnumerator FetchLatestReportCoroutine(string url)
     {
         using (UnityWebRequest uwr = UnityWebRequest.Get(url))

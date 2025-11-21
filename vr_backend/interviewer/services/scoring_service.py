@@ -2,7 +2,7 @@ import requests
 from django.conf import settings
 import json
 
-OPENROUTER_URL = "https://openrouter.ai/v1/chat/completions"
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 def score_answer(question, answer):
     """
@@ -14,16 +14,15 @@ def score_answer(question, answer):
     }
 
     system_prompt = """
-    You are a professional interview evaluator.
-    Evaluate the candidate's answer for both quality and relevance.
+    You are a professional interview evaluator. Rate each answer based on:
 
-    1) Relevance: Does the answer address the question? (Relevant / Irrelevant)
-    2) Score: 1-5 (5 = excellent, 1 = very poor)
+    1) Relevance — does the answer address the question directly? (Relevant / Irrelevant)
+    2) Score — integer 0-10 (10 = outstanding, 5 = average, 0 = no answer or off-topic).
 
     ONLY RETURN JSON:
     {
         "relevance": "<Relevant|Irrelevant>",
-        "score": <int>
+        "score": <int from 0-10>
     }
     """
 
@@ -32,7 +31,8 @@ def score_answer(question, answer):
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"Question: {question}\nAnswer: {answer}"}
-        ]
+        ],
+        "max_tokens": 200,
     }
 
     try:
@@ -41,7 +41,8 @@ def score_answer(question, answer):
         data = response.json()
         result_json = json.loads(data["choices"][0]["message"]["content"].strip())
         relevance = result_json.get("relevance", "Relevant")
-        score = int(result_json.get("score", 3))
+        score = int(result_json.get("score", 5))
+        score = max(0, min(10, score))
         return score, relevance
     except Exception as e:
         print("Scoring LLM error:", str(e))

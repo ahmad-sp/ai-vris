@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.conf import settings
+from django.http import HttpResponse
 
 from .models import InterviewSession, InterviewResponse
 from .services.llm_service import generate_interviewer_text
@@ -196,6 +197,8 @@ class InterviewReport(APIView):
             session = InterviewSession.objects.get(id=session_id)
             # Generate report even if interview is not marked as completed
             report_text = generate_report(session)
+            if request.query_params.get("format") == "text":
+                return HttpResponse(report_text, content_type="text/plain")
             return Response({
                 "candidate": session.candidate_name,
                 "status": "completed" if session.completed else "incomplete",
