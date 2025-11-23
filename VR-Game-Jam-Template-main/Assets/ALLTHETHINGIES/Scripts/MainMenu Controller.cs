@@ -16,6 +16,10 @@ public class MainMenuController : MonoBehaviour
     public GameObject reportsPanel;
     public GameObject optionsPanel;
     public GameObject helpPanel;
+    public GameObject aboutPanel; // <-- Added: About / Credits panel (assign in Inspector)
+
+    [Header("Reports Controller (NEW!)")]
+    public ReportsController reportsController;
 
     [Header("Buttons (optional - assign to ensure runtime hookup)")]
     public Button startUIButton;
@@ -23,6 +27,7 @@ public class MainMenuController : MonoBehaviour
     public Button optionsUIButton;
     public Button helpUIButton;
     public Button quitUIButton;
+    public Button aboutUIButton; // <-- Added: About button
 
     [Header("Reports fetch (optional)")]
     public string reportEndpoint = "";
@@ -38,6 +43,7 @@ public class MainMenuController : MonoBehaviour
         if (reportsPanel != null) reportsPanel.SetActive(false);
         if (optionsPanel != null) optionsPanel.SetActive(false);
         if (helpPanel != null) helpPanel.SetActive(false);
+        if (aboutPanel != null) aboutPanel.SetActive(false);
 
         // Safe programmatic hookup for buttons (prevents inspector-wiring mistakes)
         if (startUIButton != null)
@@ -54,6 +60,8 @@ public class MainMenuController : MonoBehaviour
         {
             optionsUIButton.onClick.RemoveAllListeners();
             optionsUIButton.onClick.AddListener(OnOptionsButtonPressed);
+            // NOTE: If you're using OptionsController (recommended), wire the Options button in Inspector
+            // to call OptionsController.ToggleOptionsPanel() instead. Both approaches work.
         }
         if (helpUIButton != null)
         {
@@ -64,6 +72,11 @@ public class MainMenuController : MonoBehaviour
         {
             quitUIButton.onClick.RemoveAllListeners();
             quitUIButton.onClick.AddListener(OnQuitButtonPressed);
+        }
+        if (aboutUIButton != null)
+        {
+            aboutUIButton.onClick.RemoveAllListeners();
+            aboutUIButton.onClick.AddListener(OnAboutButtonPressed);
         }
     }
 
@@ -82,9 +95,17 @@ public class MainMenuController : MonoBehaviour
 
     public void OnReportsButtonPressed()
     {
-        Debug.Log($"[MainMenu] OnReportsButtonPressed called. useSceneForReports={useSceneForReports}");
+        Debug.Log("[MainMenu] OnReportsButtonPressed");
         PlayClick();
 
+        // NEW — if ReportsController exists, always use it
+        if (reportsController != null)
+        {
+            reportsController.OpenReportsPanel();
+            return;
+        }
+
+        // (Below is the original fallback logic)
         if (useSceneForReports)
         {
             if (string.IsNullOrEmpty(reportsSceneName))
@@ -132,6 +153,9 @@ public class MainMenuController : MonoBehaviour
     {
         Debug.Log("[MainMenu] OnOptionsButtonPressed");
         PlayClick();
+
+        // If you prefer the OptionsController to handle loading/saving and animations,
+        // call its ToggleOptionsPanel() from the Options button OnClick in the Inspector.
         TogglePanel(optionsPanel);
     }
 
@@ -140,6 +164,13 @@ public class MainMenuController : MonoBehaviour
         Debug.Log("[MainMenu] OnHelpButtonPressed");
         PlayClick();
         TogglePanel(helpPanel);
+    }
+
+    public void OnAboutButtonPressed()
+    {
+        Debug.Log("[MainMenu] OnAboutButtonPressed");
+        PlayClick();
+        TogglePanel(aboutPanel);
     }
 
     public void OnQuitButtonPressed()
@@ -191,7 +222,8 @@ public class MainMenuController : MonoBehaviour
 #endif
             {
                 Debug.LogWarning("Report fetch error: " + uwr.error);
-                recentReportText.text = "Unable to load latest report.";
+                if (recentReportText != null)
+                    recentReportText.text = "Unable to load latest report.";
             }
             else
             {
@@ -202,17 +234,20 @@ public class MainMenuController : MonoBehaviour
                     SimpleReport r = JsonUtility.FromJson<SimpleReport>(json);
                     if (r != null)
                     {
-                        recentReportText.text = $"Session: {r.sessionId}\nScore: {r.overallScore}\nSummary: {r.summary}";
+                        if (recentReportText != null)
+                            recentReportText.text = $"Session: {r.sessionId}\nScore: {r.overallScore}\nSummary: {r.summary}";
                     }
                     else
                     {
-                        recentReportText.text = "No report data.";
+                        if (recentReportText != null)
+                            recentReportText.text = "No report data.";
                     }
                 }
                 catch (System.Exception ex)
                 {
                     Debug.LogWarning("Failed parsing report JSON: " + ex.Message);
-                    recentReportText.text = "Invalid report format.";
+                    if (recentReportText != null)
+                        recentReportText.text = "Invalid report format.";
                 }
             }
         }

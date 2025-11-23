@@ -1,0 +1,90 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &28921712718628448
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7710303440094332912}
+  - component: {fileID: 1088207675116228696}
+  - component: {fileID: 163990363581181922}
+  m_Layer: 0
+  m_Name: UIManagers
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7710303440094332912
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 28921712718628448}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 344.5, y: 215.5, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1088207675116228696
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 28921712718628448}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 246f7269690cf4d41b84d7862280b8a9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::OptionsController
+  optionsPanel: {fileID: 0}
+  masterSlider: {fileID: 0}
+  musicSlider: {fileID: 0}
+  sfxSlider: {fileID: 0}
+  voiceSlider: {fileID: 0}
+  qualityDropdown: {fileID: 0}
+  brightnessSlider: {fileID: 0}
+  uiScaleSlider: {fileID: 0}
+  subtitleSizeSlider: {fileID: 0}
+  audioMixer: {fileID: 0}
+  rootCanvas: {fileID: 0}
+  subtitlePreviewText: {fileID: 0}
+  uiBrightnessOverlay: {fileID: 0}
+  panelAnimationDuration: 0.15
+--- !u!114 &163990363581181922
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 28921712718628448}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 651f9f2de4c20cc40be35afbb898ca6f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MainMenuController
+  startSceneName: InterviewRoom
+  reportsSceneName: ReportsScene
+  useSceneForReports: 0
+  reportsPanel: {fileID: 0}
+  optionsPanel: {fileID: 0}
+  helpPanel: {fileID: 0}
+  aboutPanel: {fileID: 0}
+  startUIButton: {fileID: 0}
+  reportsUIButton: {fileID: 0}
+  optionsUIButton: {fileID: 0}
+  helpUIButton: {fileID: 0}
+  quitUIButton: {fileID: 0}
+  aboutUIButton: {fileID: 0}
+  reportEndpoint: 
+  recentReportText: {fileID: 0}
+  uiClickSound: {fileID: 0}
+  panelAnimationDuration: 0.15
