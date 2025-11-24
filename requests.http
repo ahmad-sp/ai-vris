@@ -1,0 +1,133 @@
+### Interview + Resume Parsing — ALL IN ONE (for REST Client / VS Code)
+### Replace placeholders: http://localhost:8000 -> http://localhost:8000
+### Replace {{SESSION_ID}} and {{UPLOAD_ID}} after responses. Replace file path with your local resume path.
+
+####################
+### 1) CREATE SESSION (create interview session)
+POST http://localhost:8000/api/interview/
+Content-Type: application/json
+
+{
+  "candidate_name": "Test Candidate",
+  "role": "Software Engineer"
+}
+
+###
+
+####################
+### 2) READ SESSIONS (list all interviews / sessions)
+GET http://localhost:8000/api/interview/
+
+###
+
+####################
+### 3) READ ONE SESSION (replace 1 with actual interview id)
+GET http://localhost:8000/api/interview/1/
+
+###
+
+####################
+### 4) UPLOAD RESUME (multipart/form-data)
+### Replace SESSION_ID below with the session_id from step 1 response
+POST http://localhost:8000/api/resume-upload/
+Content-Type: multipart/form-data
+
+--boundary
+Content-Disposition: form-data; name="session_id"
+
+{{SESSION_ID}}
+--boundary
+Content-Disposition: form-data; name="role"
+
+Software Engineer
+--boundary
+Content-Disposition: form-data; name="resume"; filename="test_resume.pdf"
+Content-Type: application/pdf
+
+< ./test_resume.pdf
+--boundary--
+
+###
+# Alternative (REST Client supports @ file upload): uncomment and use if supported by your client
+# POST http://localhost:8000/api/resume-upload/
+# Content-Type: multipart/form-data
+#
+# session_id={{SESSION_ID}}
+# role=Software Engineer
+# resume=@/absolute/path/to/test_resume.pdf
+
+###
+
+####################
+### 5) LIST UPLOADS (filter by session_id)
+GET http://localhost:8000/api/resume-upload/?session_id={{SESSION_ID}}
+
+###
+
+####################
+### 6) GET UPLOAD DETAIL (replace UPLOAD_ID with id from step 5)
+GET http://localhost:8000/api/resume-upload/{{UPLOAD_ID}}/
+
+###
+
+####################
+### 7) TRIGGER / CHECK PARSING RESULT
+### If your API exposes a parse-result endpoint or stores parsed summary in upload detail, use the upload detail above.
+### Example: polling parsed summary field from upload detail
+GET http://localhost:8000/api/resume-upload/{{UPLOAD_ID}}/?fields=parsed_summary
+
+###
+
+####################
+### 8) START / CONTINUE INTERVIEW (send answer or start flow)
+### Use session_id returned during creation
+POST http://localhost:8000/api/interview/
+Content-Type: application/json
+
+{
+  "session_id": "{{SESSION_ID}}",
+  "answer": "Ready to start the interview"
+}
+
+###
+
+####################
+### 9) NEXT INTERVIEW STEP (reply to the question returned by the API)
+POST http://localhost:8000/api/interview/
+Content-Type: application/json
+
+{
+  "session_id": "{{SESSION_ID}}",
+  "answer": "My answer to the last question"
+}
+
+###
+
+####################
+### 10) GET INTERVIEW STATE / PROGRESS
+### If your API supports GET by session (otherwise replace with numeric interview id)
+GET http://localhost:8000/api/interview/?session_id={{SESSION_ID}}
+
+###
+# or
+GET http://localhost:8000/api/interview/1/
+
+###
+
+####################
+### 11) DELETE SESSION (if supported)
+DELETE http://localhost:8000/api/interview/1/
+
+###
+
+####################
+### Quick curl equivalents (copy-paste if you prefer curl)
+
+# Create session
+# curl -s -X POST http://localhost:8000/api/interview/ -H "Content-Type: application/json" -d '{"candidate_name":"Test Candidate","role":"Software Engineer"}'
+
+# Upload resume (curl)
+# curl -s -X POST http://localhost:8000/api/resume-upload/ -F "session_id={{SESSION_ID}}" -F "role=Software Engineer" -F "resume=@/path/to/test_resume.pdf"
+
+# Continue interview
+# curl -s -X POST http://localhost:8000/api/interview/ -H "Content-Type: application/json" -d '{"session_id":"{{SESSION_ID}}","answer":"Answer text"}'

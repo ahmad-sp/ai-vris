@@ -22,6 +22,7 @@ class InterviewResponse(models.Model):
     def __str__(self):
         return f"{self.step} - {self.score}"
 
+
 class InterviewReport(models.Model):
     session = models.OneToOneField(InterviewSession, on_delete=models.CASCADE, related_name="report")
     content = models.TextField()
@@ -29,3 +30,15 @@ class InterviewReport(models.Model):
     
     def __str__(self):
         return f"Report for {self.session.candidate_name} - {self.session.role}"
+
+
+class ResumeUpload(models.Model):
+    session = models.OneToOneField(InterviewSession, on_delete=models.CASCADE, related_name="resume")
+    pdf_file = models.FileField(upload_to='resumes/')
+    raw_text = models.TextField()
+    summary = models.TextField()
+    role = models.CharField(max_length=100)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Resume for {self.session.candidate_name} - {self.role}"
