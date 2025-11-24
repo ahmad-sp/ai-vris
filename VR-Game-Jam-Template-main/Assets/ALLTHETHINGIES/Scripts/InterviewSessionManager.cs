@@ -47,11 +47,19 @@ public class InterviewSessionManager : MonoBehaviour
 
     void Start()
     {
+        Debug.Log("[InterviewSessionManager] Start()");
         int sessionId = PlayerPrefs.GetInt("session_id", 0);
+        Debug.Log($"[InterviewSessionManager] Found sessionId = {sessionId}");
+
         if (sessionId != 0)
         {
-            Debug.Log("[InterviewSessionManager] Found session_id " + sessionId + " - resuming interview.");
-            StartCoroutine(FetchInitialQuestionAndStart(sessionId));
+            // start server-based flow
+            StartCoroutine(TryStartFromServer(sessionId));
+        }
+        else
+        {
+            Debug.LogWarning("[InterviewSessionManager] No session id found - starting local interview flow.");
+            StartInterviewLocally();
         }
     }
 
@@ -91,6 +99,114 @@ public class InterviewSessionManager : MonoBehaviour
         if (vad != null)
             vad.StopListening();
         StartCoroutine(PostAnswerAndHandleNext(transcript));
+    }
+
+    private IEnumerator TryStartFromServer(int sessionId)
+    {
+        // Build URL: backendBaseUrl + interviewPath + sessionId + "/start/"
+        string url = backendBaseUrl.TrimEnd('/') + "/" + interviewPath.Trim('/') + "/" + sessionId + "/start/";
+        Debug.Log("[InterviewSessionManager] Requesting start from: " + url);
+
+        using (UnityWebRequest req = UnityWebRequest.Get(url))
+        {
+            req.timeout = 10;
+            yield return req.SendWebRequest();
+
+#if UNITY_2020_1_OR_NEWER
+            if (req.result == UnityWebRequest.Result.ConnectionError)
+#else
+            if (req.isNetworkError)
+#endif
+            {
+                Debug.LogWarning("[InterviewSessionManager] Network error while fetching start: " + req.error);
+                StartInterviewLocally();
+                yield break;
+            }
+
+#if UNITY_2020_1_OR_NEWER
+            if (req.result == UnityWebRequest.Result.ProtocolError)
+#else
+            if (req.isHttpError)
+#endif
+            {
+                Debug.LogWarning($"[InterviewSessionManager] Server returned HTTP {req.responseCode}. Body: {req.downloadHandler.text}");
+                // 404 or error -> fallback to local
+                StartInterviewLocally();
+                yield break;
+            }
+
+            string json = req.downloadHandler.text;
+            Debug.Log("[InterviewSessionManager] Start response: " + json);
+
+            // Expecting JSON like: { "question": "...", "audio_url": "http://..." }
+            string question = ExtractJsonString(json, "question");
+            string audioUrl = ExtractJsonString(json, "audio_url");
+
+            if (!string.IsNullOrEmpty(question))
+            {
+                if (questionText != null) questionText.text = question;
+                else Debug.LogWarning("[InterviewSessionManager] questionText is null, can't show question.");
+            }
+            else
+            {
+                Debug.LogWarning("[InterviewSessionManager] No question field in response.");
+            }
+
+            if (!string.IsNullOrEmpty(audioUrl) && questionAudioSource != null)
+            {
+                Debug.Log("[InterviewSessionManager] Downloading audio: " + audioUrl);
+                yield return StartCoroutine(DownloadAndPlayAudio(audioUrl));
+            }
+            else
+            {
+                Debug.Log("[InterviewSessionManager] No audio URL or audio source; starting VAD/listen now.");
+                StartInterviewListening();
+            }
+        }
+    }
+
+    // Simple JSON extractor (very basic; adapt if your server JSON is nested)
+    private string ExtractJsonString(string json, string key)
+    {
+        if (string.IsNullOrEmpty(json)) return null;
+        try
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(json, $"\"{key}\"\\s*:\\s*\"([^\"]+)\"", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (m.Success) return UnityWebRequest.UnEscapeURL(m.Groups[1].Value);
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning("[InterviewSessionManager] ExtractJsonString error: " + ex.Message);
+        }
+        return null;
+    }
+
+    private IEnumerator DownloadAndPlayAudio(string audioUrl)
+    {
+        // Reuse existing audio download helper, then start listening
+        yield return StartCoroutine(DownloadAndPlay(audioUrl));
+        StartInterviewListening();
+    }
+
+    private void StartInterviewListening()
+    {
+        Debug.Log("[InterviewSessionManager] Starting VAD / listening for candidate response.");
+        if (vad != null)
+        {
+            vad.StartListening();
+        }
+        else
+        {
+            Debug.LogWarning("[InterviewSessionManager] vad reference is null.");
+        }
+    }
+
+    private void StartInterviewLocally()
+    {
+        // fallback local question: set a default prompt and start listening
+        Debug.Log("[InterviewSessionManager] Fallback: starting local interview.");
+        if (questionText != null) questionText.text = "Hello — tell me about yourself.";
+        StartInterviewListening(); 
     }
 
     private IEnumerator FetchInitialQuestionAndStart(int sessionId)
