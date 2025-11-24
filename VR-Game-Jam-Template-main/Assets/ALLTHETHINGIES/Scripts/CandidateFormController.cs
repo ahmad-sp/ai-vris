@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using UnityEngine.SceneManagement;
+using UnityEngine.Networking;
 using System.Collections;
 
 public class CandidateFormController : MonoBehaviour
@@ -17,9 +18,16 @@ public class CandidateFormController : MonoBehaviour
     [Header("Scene to load")]
     public string startSceneName = "InterviewRoom"; // change to your scene name
 
+    [Header("Backend")]
+    // Set this to your backend base URL, e.g. http://127.0.0.1:8000
+    public string backendBaseUrl = "http://127.0.0.1:8000";
+    // Endpoint to create a session. I use /api/interview/sessions/ (adjust if your API differs)
+    public string createSessionPath = "/api/interview/sessions/";
+
     // PlayerPrefs keys
     const string KEY_CANDIDATE_NAME = "candidate_name";
     const string KEY_CANDIDATE_ROLE = "candidate_role";
+    const string KEY_SESSION_ID = "session_id";
 
     void Start()
     {
@@ -61,6 +69,7 @@ public class CandidateFormController : MonoBehaviour
         if (candidateFormPanel != null) candidateFormPanel.SetActive(false);
     }
 
+    // Called by Submit button
     public void OnSubmit()
     {
         string name = nameInput != null ? nameInput.text.Trim() : "";
@@ -78,23 +87,100 @@ public class CandidateFormController : MonoBehaviour
             return;
         }
 
-        // Save choices so other scenes can read them (PlayerPrefs is simplest)
+        // Save locally (so it's available even if session creation fails)
         PlayerPrefs.SetString(KEY_CANDIDATE_NAME, name);
         PlayerPrefs.SetString(KEY_CANDIDATE_ROLE, role);
         PlayerPrefs.Save();
 
-        // Optionally close the form immediately and then load scene
-        candidateFormPanel.SetActive(false);
+        // Start coroutine to create session then load scene
+        StartCoroutine(CreateSessionThenLoad(name, role));
+    }
 
-        // Load the interview/start scene
-        if (!string.IsNullOrEmpty(startSceneName))
+    IEnumerator CreateSessionThenLoad(string name, string role)
+    {
+        if (string.IsNullOrEmpty(backendBaseUrl) || string.IsNullOrEmpty(createSessionPath))
         {
-            SceneManager.LoadScene(startSceneName);
+            Debug.LogWarning("[CandidateFormController] backendBaseUrl or createSessionPath not set. Falling back to direct scene load.");
+            candidateFormPanel.SetActive(false);
+            if (!string.IsNullOrEmpty(startSceneName))
+                SceneManager.LoadScene(startSceneName);
+            yield break;
         }
-        else
+
+        string url = backendBaseUrl.TrimEnd('/') + "/" + createSessionPath.TrimStart('/');
+        // Build JSON payload - adjust keys to match your backend expected fields
+        var payloadObj = new { candidate_name = name, role = role };
+        string json = JsonUtility.ToJson(payloadObj);
+
+        using (UnityWebRequest uwr = UnityWebRequest.PostWwwForm(url, "POST"))
         {
-            Debug.LogWarning("[CandidateFormController] startSceneName not set.");
+            byte[] body = System.Text.Encoding.UTF8.GetBytes(json);
+            uwr.uploadHandler = new UploadHandlerRaw(body);
+            uwr.downloadHandler = new DownloadHandlerBuffer();
+            uwr.SetRequestHeader("Content-Type", "application/json");
+            uwr.timeout = 10;
+
+            if (validationText != null) validationText.text = "Creating session...";
+
+            yield return uwr.SendWebRequest();
+
+#if UNITY_2020_1_OR_NEWER
+            if (uwr.result == UnityWebRequest.Result.ConnectionError || uwr.result == UnityWebRequest.Result.ProtocolError)
+#else
+            if (uwr.isNetworkError || uwr.isHttpError)
+#endif
+            {
+                Debug.LogError("[CandidateFormController] Create session failed: " + uwr.error + " - " + uwr.downloadHandler?.text);
+                if (validationText != null) validationText.text = "Failed to create session. Check server.";
+                // still allow fallback: load scene without session, or return and let user retry
+                yield break;
+            }
+
+            string resp = uwr.downloadHandler.text;
+            // Try to parse session_id (assumes response JSON contains session_id field)
+            int sessionId = 0;
+            try
+            {
+                // Minimal wrapper to extract session_id
+                var wrapper = JsonUtility.FromJson<SessionCreateResponse>(resp);
+                if (wrapper != null && wrapper.session_id != 0)
+                {
+                    sessionId = wrapper.session_id;
+                }
+                else
+                {
+                    Debug.LogWarning("[CandidateFormController] session_id not found in response, raw: " + resp);
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning("[CandidateFormController] Failed to parse create-session response: " + ex.Message);
+            }
+
+            if (sessionId != 0)
+            {
+                PlayerPrefs.SetInt(KEY_SESSION_ID, sessionId);
+                PlayerPrefs.Save();
+                Debug.Log("[CandidateFormController] Created session id: " + sessionId);
+            }
+            else
+            {
+                Debug.LogWarning("[CandidateFormController] No session id returned - proceeding without session id.");
+            }
+
+            // Close form and load scene
+            candidateFormPanel.SetActive(false);
+            if (!string.IsNullOrEmpty(startSceneName))
+                SceneManager.LoadScene(startSceneName);
+            else
+                Debug.LogWarning("[CandidateFormController] startSceneName not set.");
         }
+    }
+
+    [System.Serializable]
+    private class SessionCreateResponse
+    {
+        public int session_id;
     }
 
     void ShowValidation(string msg)

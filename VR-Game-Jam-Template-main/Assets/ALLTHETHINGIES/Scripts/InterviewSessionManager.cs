@@ -45,6 +45,16 @@ public class InterviewSessionManager : MonoBehaviour
         }
     }
 
+    void Start()
+    {
+        int sessionId = PlayerPrefs.GetInt("session_id", 0);
+        if (sessionId != 0)
+        {
+            Debug.Log("[InterviewSessionManager] Found session_id " + sessionId + " - resuming interview.");
+            StartCoroutine(FetchInitialQuestionAndStart(sessionId));
+        }
+    }
+
     // Public entry to handle the very first prompt from CandidateInfoForm
     public void StartWithPrompt(string question, string audioUrl)
     {
@@ -81,6 +91,36 @@ public class InterviewSessionManager : MonoBehaviour
         if (vad != null)
             vad.StopListening();
         StartCoroutine(PostAnswerAndHandleNext(transcript));
+    }
+
+    private IEnumerator FetchInitialQuestionAndStart(int sessionId)
+    {
+        string url = backendBaseUrl.TrimEnd('/') + $"/api/interview/{sessionId}/start/";
+        using (var req = UnityWebRequest.Get(url))
+        {
+            req.timeout = 8;
+            yield return req.SendWebRequest();
+
+            if (req.result != UnityWebRequest.Result.Success)
+            {
+                Debug.LogWarning("[Interview] Failed to fetch initial question: " + req.error);
+                // fallback: start listening or show message
+                if (vad != null) vad.StartListening();
+                yield break;
+            }
+
+            // parse response (assume JSON { question: "...", audio_url: "..." })
+            try
+            {
+                var resp = JsonUtility.FromJson<InitialQuestionResponse>(req.downloadHandler.text);
+                StartCoroutine(HandleInitialPrompt(resp.question, resp.audio_url));
+            }
+            catch
+            {
+                Debug.LogWarning("[Interview] Could not parse initial question response.");
+                if (vad != null) vad.StartListening();
+            }
+        }
     }
 
     private IEnumerator PostAnswerAndHandleNext(string answer)
@@ -293,6 +333,13 @@ public class InterviewSessionManager : MonoBehaviour
     private class ReportResponse
     {
         public string report;
+    }
+
+    [System.Serializable]
+    private class InitialQuestionResponse
+    {
+        public string question;
+        public string audio_url;
     }
 
     private IEnumerator FetchAndDisplayReport(string url)

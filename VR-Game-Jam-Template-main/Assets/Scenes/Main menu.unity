@@ -277,9 +277,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 251415697}
-        m_TargetAssemblyTypeName: MainMenuController, Assembly-CSharp
-        m_MethodName: OnStartButtonPressed
+      - m_Target: {fileID: 2000768459}
+        m_TargetAssemblyTypeName: CandidateFormController, Assembly-CSharp
+        m_MethodName: OpenForm
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -1028,6 +1028,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 651f9f2de4c20cc40be35afbb898ca6f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MainMenuController
+--- !u!114 &313894782 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 8835608706574094405, guid: 90b6b0b659c0665498c1b5a6fc7227bb,
+    type: 3}
+  m_PrefabInstance: {fileID: 1715146657}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2da0c512f12947e489f739169773d7ca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TMP_InputField
 --- !u!1 &341277525
 GameObject:
   m_ObjectHideFlags: 0
@@ -1405,9 +1417,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 251415697}
-        m_TargetAssemblyTypeName: MainMenuController, Assembly-CSharp
-        m_MethodName: OnStartButtonPressed
+      - m_Target: {fileID: 2000768459}
+        m_TargetAssemblyTypeName: CandidateFormController, Assembly-CSharp
+        m_MethodName: OpenForm
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -1750,6 +1762,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 406066918}
   m_CullTransparentMesh: 1
+--- !u!114 &412347152 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1356112779409430919, guid: 90b6b0b659c0665498c1b5a6fc7227bb,
+    type: 3}
+  m_PrefabInstance: {fileID: 1715146657}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
 --- !u!1 &485699407
 GameObject:
   m_ObjectHideFlags: 0
@@ -2117,8 +2141,8 @@ RectTransform:
   - {fileID: 1227256884}
   - {fileID: 1909735560}
   - {fileID: 671643734}
-  - {fileID: 1999856837}
   - {fileID: 1715146658}
+  - {fileID: 1999856837}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -2706,6 +2730,12 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 781419197}
   m_CullTransparentMesh: 1
+--- !u!1 &788208995 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1778713150585853902, guid: 90b6b0b659c0665498c1b5a6fc7227bb,
+    type: 3}
+  m_PrefabInstance: {fileID: 1715146657}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &858733456
 GameObject:
   m_ObjectHideFlags: 0
@@ -3458,6 +3488,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1152199823}
   m_CullTransparentMesh: 1
+--- !u!114 &1161262697 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 652043664991474141, guid: 90b6b0b659c0665498c1b5a6fc7227bb,
+    type: 3}
+  m_PrefabInstance: {fileID: 1715146657}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
 --- !u!1 &1161814626
 GameObject:
   m_ObjectHideFlags: 0
@@ -4853,6 +4895,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1547563340}
   m_CullTransparentMesh: 1
+--- !u!114 &1599254688 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1147258528141390176, guid: 90b6b0b659c0665498c1b5a6fc7227bb,
+    type: 3}
+  m_PrefabInstance: {fileID: 1715146657}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2da0c512f12947e489f739169773d7ca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TMP_InputField
 --- !u!1 &1606363545
 GameObject:
   m_ObjectHideFlags: 0
@@ -5739,6 +5793,11 @@ PrefabInstance:
       propertyPath: m_Color.r
       value: 0.3773585
       objectReference: {fileID: 0}
+    - target: {fileID: 2620063112583945804, guid: 90b6b0b659c0665498c1b5a6fc7227bb,
+        type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2655017519877618132, guid: 90b6b0b659c0665498c1b5a6fc7227bb,
         type: 3}
       propertyPath: m_Type
@@ -5912,7 +5971,7 @@ PrefabInstance:
     - target: {fileID: 2667998310619865579, guid: 90b6b0b659c0665498c1b5a6fc7227bb,
         type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 960
+      value: 960.00006
       objectReference: {fileID: 0}
     - target: {fileID: 2667998310619865579, guid: 90b6b0b659c0665498c1b5a6fc7227bb,
         type: 3}
@@ -6077,6 +6136,11 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7659477233460959760, guid: 90b6b0b659c0665498c1b5a6fc7227bb,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8291836278559306820, guid: 90b6b0b659c0665498c1b5a6fc7227bb,
         type: 3}
       propertyPath: m_IsActive
       value: 1
@@ -7023,13 +7087,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2651a99b11e9a1e4da623f388c8b749c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CandidateFormController
-  candidateFormPanel: {fileID: 0}
-  nameInput: {fileID: 0}
-  roleInput: {fileID: 0}
-  validationText: {fileID: 0}
-  submitButton: {fileID: 0}
+  candidateFormPanel: {fileID: 788208995}
+  nameInput: {fileID: 1599254688}
+  roleInput: {fileID: 313894782}
+  validationText: {fileID: 1161262697}
+  submitButton: {fileID: 412347152}
   cancelButton: {fileID: 0}
   startSceneName: InterviewRoom
+  backendBaseUrl: http://127.0.0.1:8000
+  createSessionPath: /api/interview/sessions/
 --- !u!1 &2006656786
 GameObject:
   m_ObjectHideFlags: 0
