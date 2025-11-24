@@ -163,7 +163,8 @@ public class CandidateFormController : MonoBehaviour
             uwr.uploadHandler = new UploadHandlerRaw(bodyRaw);
             uwr.downloadHandler = new DownloadHandlerBuffer();
             uwr.SetRequestHeader("Content-Type", "application/json");
-            uwr.timeout = 10;
+            // Allow extra time for backend to call LLM + TTS
+            uwr.timeout = 30;
 
             if (validationText != null) validationText.text = "Creating session...";
 
