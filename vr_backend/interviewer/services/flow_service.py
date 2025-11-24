@@ -92,14 +92,24 @@ def is_technical_role(role_name):
         return True  # fallback to allow
 
 
-def get_next_step(current_step, role=None):
-    """Returns next section."""
+def get_next_step(current_step, role=None, session=None):
+    """Returns next section, skipping Resume Questions if no resume uploaded."""
     if current_step not in STEPS_ORDER:
         return "Exit"
     idx = STEPS_ORDER.index(current_step)
-    if idx >= len(STEPS_ORDER) - 1:
-        return "Exit"
-    return STEPS_ORDER[idx + 1]
+    
+    # Get next step
+    next_step = STEPS_ORDER[idx + 1] if idx < len(STEPS_ORDER) - 1 else "Exit"
+    
+    # Skip Resume Questions if no resume uploaded
+    if next_step == "Resume Questions" and session:
+        try:
+            session.resume  # Check if resume exists
+        except:
+            # No resume uploaded, skip to Technical
+            return "Technical"
+    
+    return next_step
 
 
 def get_remaining(session):
@@ -109,7 +119,20 @@ def get_remaining(session):
 
     steps = STEPS_ORDER
     current_index = steps.index(session.current_step)
-    remaining_sections = max(len(steps) - current_index - 2, 0)  # -2 for current and Exit steps
+    
+    # Calculate remaining sections, accounting for potential skipping of Resume Questions
+    remaining_sections = 0
+    for i in range(current_index + 1, len(steps) - 1):  # Exclude Exit step
+        step = steps[i]
+        if step == "Resume Questions":
+            try:
+                session.resume  # Check if resume exists
+                remaining_sections += 1
+            except:
+                # No resume, skip this section
+                continue
+        else:
+            remaining_sections += 1
     
     # Get the max questions for the current section from views.py
     from interviewer.views import MAX_QUESTIONS

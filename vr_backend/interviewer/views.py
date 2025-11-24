@@ -8,12 +8,13 @@ from rest_framework import status
 from django.conf import settings
 from django.http import HttpResponse
 
-from .models import InterviewSession, InterviewResponse
+from .models import InterviewSession, InterviewResponse, ResumeUpload
 from .services.llm_service import generate_interviewer_text
 from .services.scoring_service import score_answer
 from .services.flow_service import get_next_step, get_remaining, is_technical_role
 from .services.report_service import generate_report
 from .services.speech_to_text import transcribe_audio
+from .services.resume_parser_service import process_resume_upload
 
 load_dotenv()
 
@@ -116,7 +117,15 @@ class InterviewStep(APIView):
                 })
 
             # 🧠 Generate interviewer text dynamically
-            interviewer_text = generate_interviewer_text(session.role, current_step, answer)
+            resume_summary = None
+            if current_step == "Resume Questions":
+                try:
+                    resume = session.resume
+                    resume_summary = resume.summary
+                except ResumeUpload.DoesNotExist:
+                    resume_summary = None
+            
+            interviewer_text = generate_interviewer_text(session.role, current_step, answer, resume_summary)
 
             # 🚪 If Exit or Wrap-Up step, close interview gracefully
             if current_step in ["Wrap-Up", "Exit"]:
@@ -141,7 +150,7 @@ class InterviewStep(APIView):
 
             # 🔁 Move to next step if section done
             if asked_questions + 1 >= max_questions:  # If next question would exceed max
-                next_step = get_next_step(current_step, session.role)
+                next_step = get_next_step(current_step, session.role, session)
                 session.current_step = next_step
                 if next_step == "Exit":
                     session.completed = True
@@ -295,4 +304,49 @@ class AudioToTextView(APIView):
             
         except Exception as e:
             print(f"Error in audio processing: {str(e)}")
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ResumeUploadView(APIView):
+    """Handle resume upload and parsing."""
+    
+    def post(self, request):
+        session_id = request.data.get("session_id")
+        role = request.data.get("role")
+        pdf_file = request.FILES.get("resume")
+        
+        if not session_id or not role or not pdf_file:
+            return Response({
+                "error": "session_id, role, and resume file are required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            session = InterviewSession.objects.get(id=session_id)
+            
+            # Process the resume
+            result = process_resume_upload(pdf_file, role)
+            
+            if "error" in result:
+                return Response({"error": result["error"]}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Save resume data
+            resume = ResumeUpload.objects.create(
+                session=session,
+                pdf_file=pdf_file,
+                raw_text=result["raw_text"],
+                summary=result["summary"],
+                role=role
+            )
+            
+            return Response({
+                "success": True,
+                "message": "Resume uploaded and processed successfully",
+                "resume_id": resume.id,
+                "summary": result["summary"]
+            }, status=status.HTTP_201_CREATED)
+            
+        except InterviewSession.DoesNotExist:
+            return Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            print(f"Resume upload error: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -10,7 +10,7 @@ def ask_llm(prompt):
     """Send prompt safely to OpenRouter LLM and return text."""
     try:
         payload = {
-            "model": "openai/gpt-4o-mini",
+            "model": "x-ai/grok-4.1-fast:free",
             "messages": [
                 {
                     "role": "system",
@@ -41,7 +41,7 @@ def ask_llm(prompt):
         return "Let's continue with the next question."
 
 
-def generate_interviewer_text(role, current_step, previous_answer=None):
+def generate_interviewer_text(role, current_step, previous_answer=None, resume_summary=None):
     """Generate context-aware interviewer questions dynamically."""
     role_context = (
         f"You are Jake, a professional interviewer AI conducting structured interviews.\n"
@@ -76,22 +76,72 @@ Do NOT ask any more questions — this is the end of the session.
 """
         return ask_llm(prompt)
 
-    # 💬 3. Ongoing Questions
+    # 💼 4. Resume Questions Section
+    if current_step.lower() == "resume questions" and resume_summary:
+        prompt = f"""
+{role_context}
+
+Candidate Resume Summary:
+{resume_summary}
+
+Based on the candidate's resume summary above, ask specific, relevant questions about:
+- Their experience and skills mentioned in the resume
+- Projects or achievements they've highlighted
+- How their background relates to the {role} position
+- Any gaps or areas you'd like to explore further
+
+Ask questions that show you've actually reviewed their resume and are genuinely interested in their background.
+Make the questions specific to their experience, not generic.
+"""
+        return ask_llm(prompt)
+
+    # 💬 5. Ongoing Questions (including resume questions follow-up)
     if previous_answer:
         prompt = f"""
 {role_context}
 
 The candidate just said: "{previous_answer}"
+"""
+        
+        # Add resume context if we're in resume questions section
+        if current_step.lower() == "resume questions" and resume_summary:
+            prompt += f"""
+
+Candidate Resume Summary (for context):
+{resume_summary}
+"""
+        
+        prompt += f"""
 
 Your job:
 - Appreciate their response briefly (1 short line only).
 - Ask the next relevant follow-up question that fits the {current_step} section.
 - Keep it concise and related to {role}.
+- If this is resume questions, continue asking about their experience, skills, or background based on their resume.
 - Avoid repeating or generic questions.
 """
     else:
         prompt = f"""
 {role_context}
+"""
+        
+        # Add resume context for initial resume questions
+        if current_step.lower() == "resume questions" and resume_summary:
+            prompt += f"""
+
+Candidate Resume Summary:
+{resume_summary}
+
+Based on the candidate's resume summary above, ask specific, relevant questions about:
+- Their experience and skills mentioned in the resume
+- Projects or achievements they've highlighted
+- How their background relates to the {role} position
+
+Ask questions that show you've actually reviewed their resume and are genuinely interested in their background.
+Make the questions specific to their experience, not generic.
+"""
+        else:
+            prompt += f"""
 
 Start the {current_step} section by asking a relevant, role-based technical or behavioral question.
 Keep it short, natural, and clear — not robotic.
