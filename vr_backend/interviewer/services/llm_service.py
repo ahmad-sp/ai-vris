@@ -10,7 +10,7 @@ def ask_llm(prompt):
     """Send prompt safely to OpenRouter LLM and return text."""
     try:
         payload = {
-            "model": "openai/gpt-4o-mini",
+            "model": "x-ai/grok-4.1-fast:free",
             "messages": [
                 {
                     "role": "system",
