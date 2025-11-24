@@ -6065,6 +6065,11 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4942481406477750375, guid: 90b6b0b659c0665498c1b5a6fc7227bb,
+        type: 3}
+      propertyPath: m_ReferencePixelsPerUnit
+      value: 99
+      objectReference: {fileID: 0}
     - target: {fileID: 4989732359544199123, guid: 90b6b0b659c0665498c1b5a6fc7227bb,
         type: 3}
       propertyPath: m_AnchoredPosition.x

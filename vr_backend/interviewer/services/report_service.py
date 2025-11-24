@@ -83,7 +83,7 @@ def generate_report(session):
     """
 
     payload = {
-        "model": "openai/gpt-4-turbo-preview",
+        "model": "x-ai/grok-4.1-fast:free",
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": transcript}

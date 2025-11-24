@@ -27,7 +27,7 @@ def score_answer(question, answer):
     """
 
     payload = {
-        "model": "gpt-4o-mini",
+        "model": "x-ai/grok-4.1-fast:free",
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"Question: {question}\nAnswer: {answer}"}
