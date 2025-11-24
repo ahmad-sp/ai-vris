@@ -28,6 +28,7 @@ public class MainMenuController : MonoBehaviour
     public Button helpUIButton;
     public Button quitUIButton;
     public Button aboutUIButton; // <-- Added: About button
+    public CandidateFormController candidateFormController;
 
     [Header("Reports fetch (optional)")]
     public string reportEndpoint = "";
@@ -87,6 +88,13 @@ public class MainMenuController : MonoBehaviour
     {
         Debug.Log("[MainMenu] OnStartButtonPressed called");
         PlayClick();
+        if (candidateFormController != null)
+        {
+            candidateFormController.OpenForm();
+            return;
+        }
+
+        // fallback: previous behavior
         if (!string.IsNullOrEmpty(startSceneName))
             SceneManager.LoadScene(startSceneName);
         else
