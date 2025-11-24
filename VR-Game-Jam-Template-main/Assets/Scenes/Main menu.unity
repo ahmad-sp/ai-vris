@@ -7095,7 +7095,7 @@ MonoBehaviour:
   cancelButton: {fileID: 0}
   startSceneName: InterviewRoom
   backendBaseUrl: http://127.0.0.1:8000
-  createSessionPath: /api/interview/sessions/
+  createSessionPath: /api/interview/
 --- !u!1 &2006656786
 GameObject:
   m_ObjectHideFlags: 0

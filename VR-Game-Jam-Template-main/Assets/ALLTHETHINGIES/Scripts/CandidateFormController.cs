@@ -4,6 +4,7 @@ using TMPro;
 using UnityEngine.SceneManagement;
 using UnityEngine.Networking;
 using System.Collections;
+using System.Text.RegularExpressions;
 
 public class CandidateFormController : MonoBehaviour
 {
@@ -19,10 +20,9 @@ public class CandidateFormController : MonoBehaviour
     public string startSceneName = "InterviewRoom"; // change to your scene name
 
     [Header("Backend")]
-    // Set this to your backend base URL, e.g. http://127.0.0.1:8000
+    // Use the endpoint you gave: /api/interview/
     public string backendBaseUrl = "http://127.0.0.1:8000";
-    // Endpoint to create a session. I use /api/interview/sessions/ (adjust if your API differs)
-    public string createSessionPath = "/api/interview/sessions/";
+    public string createSessionPath = "/api/interview/"; // UPDATED to the endpoint you reported
 
     // PlayerPrefs keys
     const string KEY_CANDIDATE_NAME = "candidate_name";
@@ -55,13 +55,16 @@ public class CandidateFormController : MonoBehaviour
             Debug.LogWarning("[CandidateFormController] candidateFormPanel not assigned.");
             return;
         }
-        // optionally prefill from PlayerPrefs
-        nameInput.SetTextWithoutNotify(PlayerPrefs.GetString(KEY_CANDIDATE_NAME, ""));
-        roleInput.SetTextWithoutNotify(PlayerPrefs.GetString(KEY_CANDIDATE_ROLE, ""));
-        validationText.text = "";
+        // optionally prefill from PlayerPrefs, safe checks
+        if (nameInput != null)
+            nameInput.SetTextWithoutNotify(PlayerPrefs.GetString(KEY_CANDIDATE_NAME, ""));
+        if (roleInput != null)
+            roleInput.SetTextWithoutNotify(PlayerPrefs.GetString(KEY_CANDIDATE_ROLE, ""));
+
+        if (validationText != null) validationText.text = "";
         candidateFormPanel.SetActive(true);
         // optionally focus input (not always available on all targets)
-        nameInput.Select();
+        if (nameInput != null) nameInput.Select();
     }
 
     public void CloseForm()
@@ -108,14 +111,56 @@ public class CandidateFormController : MonoBehaviour
         }
 
         string url = backendBaseUrl.TrimEnd('/') + "/" + createSessionPath.TrimStart('/');
-        // Build JSON payload - adjust keys to match your backend expected fields
-        var payloadObj = new { candidate_name = name, role = role };
-        string json = JsonUtility.ToJson(payloadObj);
+        if (validationText != null) validationText.text = "Checking server...";
 
-        using (UnityWebRequest uwr = UnityWebRequest.PostWwwForm(url, "POST"))
+        string allowHeader = null;
+
+        // 1) OPTIONS: check allowed methods (not all servers respond, but it's helpful)
+        using (UnityWebRequest optionsReq = UnityWebRequest.Put(url, "")) // create request object
         {
-            byte[] body = System.Text.Encoding.UTF8.GetBytes(json);
-            uwr.uploadHandler = new UploadHandlerRaw(body);
+            optionsReq.method = "OPTIONS";
+            optionsReq.downloadHandler = new DownloadHandlerBuffer();
+            optionsReq.timeout = 8;
+            yield return optionsReq.SendWebRequest();
+
+#if UNITY_2020_1_OR_NEWER
+            if (optionsReq.result == UnityWebRequest.Result.ConnectionError || optionsReq.result == UnityWebRequest.Result.ProtocolError)
+#else
+            if (optionsReq.isNetworkError || optionsReq.isHttpError)
+#endif
+            {
+                Debug.LogWarning("[CandidateFormController] OPTIONS request failed: " + optionsReq.error + " raw: " + optionsReq.downloadHandler?.text);
+                // Continue — some servers don't respond to OPTIONS, we will still try POST below
+            }
+            else
+            {
+                allowHeader = optionsReq.GetResponseHeader("Allow");
+                Debug.Log("[CandidateFormController] OPTIONS Allow: " + allowHeader);
+            }
+        }
+
+        // If server explicitly disallows POST, show message and stop
+        if (!string.IsNullOrEmpty(allowHeader) && !allowHeader.ToUpper().Contains("POST"))
+        {
+            string msg = $"Server does not allow POST at this URL. Allowed: {allowHeader}";
+            Debug.LogError("[CandidateFormController] " + msg);
+            if (validationText != null)
+                validationText.text = "Server doesn't accept POST here.\nAllowed: " + allowHeader + "\nCheck API endpoint or server.";
+            Debug.Log("[CandidateFormController] Quick test with curl (try in terminal):");
+            Debug.Log($"curl -i -X OPTIONS {url}");
+            Debug.Log($"curl -v -H \"Content-Type: application/json\" -X POST -d '{{\"candidate_name\":\"{name}\",\"role\":\"{role}\"}}' {url}");
+            yield break;
+        }
+
+        // 2) Build JSON payload
+        var payloadObj = new CreateSessionPayload { candidate_name = name, role = role };
+        string json = JsonUtility.ToJson(payloadObj);
+        Debug.Log("[CandidateFormController] POST payload: " + json);
+
+        using (UnityWebRequest uwr = new UnityWebRequest(url, "POST"))
+        {
+            byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(json);
+            uwr.uploadHandler = new UploadHandlerRaw(bodyRaw);
             uwr.downloadHandler = new DownloadHandlerBuffer();
             uwr.SetRequestHeader("Content-Type", "application/json");
             uwr.timeout = 10;
@@ -131,30 +176,45 @@ public class CandidateFormController : MonoBehaviour
 #endif
             {
                 Debug.LogError("[CandidateFormController] Create session failed: " + uwr.error + " - " + uwr.downloadHandler?.text);
-                if (validationText != null) validationText.text = "Failed to create session. Check server.";
-                // still allow fallback: load scene without session, or return and let user retry
+                if (validationText != null)
+                    validationText.text = "Failed to create session: " + uwr.error;
+                Debug.Log($"Server response body: {uwr.downloadHandler?.text}");
+                Debug.Log("Try testing with curl:");
+                Debug.Log($"curl -v -H \"Content-Type: application/json\" -X POST -d '{json}' {url}");
                 yield break;
             }
 
+            // Parse response (try multiple formats)
             string resp = uwr.downloadHandler.text;
-            // Try to parse session_id (assumes response JSON contains session_id field)
             int sessionId = 0;
             try
             {
-                // Minimal wrapper to extract session_id
+                // Primary parse: expects {"session_id": 122}
                 var wrapper = JsonUtility.FromJson<SessionCreateResponse>(resp);
-                if (wrapper != null && wrapper.session_id != 0)
-                {
-                    sessionId = wrapper.session_id;
-                }
+                if (wrapper != null && wrapper.session_id != 0) sessionId = wrapper.session_id;
                 else
                 {
-                    Debug.LogWarning("[CandidateFormController] session_id not found in response, raw: " + resp);
+                    Debug.LogWarning("[CandidateFormController] session_id not found in response JSON. Raw: " + resp);
+                    // fallback: try to extract 'session_id' or 'id' numeric value using regex
+                    try
+                    {
+                        Match m = Regex.Match(resp, @"""session_id""\s*:\s*(\d+)", RegexOptions.IgnoreCase);
+                        if (!m.Success) m = Regex.Match(resp, @"""id""\s*:\s*(\d+)", RegexOptions.IgnoreCase);
+                        if (m.Success)
+                        {
+                            int.TryParse(m.Groups[1].Value, out sessionId);
+                            Debug.LogWarning("[CandidateFormController] extracted session id via regex: " + sessionId);
+                        }
+                    }
+                    catch (System.Exception rex)
+                    {
+                        Debug.LogWarning("[CandidateFormController] regex parse failed: " + rex.Message);
+                    }
                 }
             }
             catch (System.Exception ex)
             {
-                Debug.LogWarning("[CandidateFormController] Failed to parse create-session response: " + ex.Message);
+                Debug.LogWarning("[CandidateFormController] Failed to parse create-session response: " + ex.Message + " raw: " + resp);
             }
 
             if (sessionId != 0)
@@ -175,6 +235,13 @@ public class CandidateFormController : MonoBehaviour
             else
                 Debug.LogWarning("[CandidateFormController] startSceneName not set.");
         }
+    }
+
+    [System.Serializable]
+    private class CreateSessionPayload
+    {
+        public string candidate_name;
+        public string role;
     }
 
     [System.Serializable]
