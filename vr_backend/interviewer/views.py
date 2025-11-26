@@ -8,7 +8,7 @@ from rest_framework import status
 from django.conf import settings
 from django.http import HttpResponse
 
-from .models import InterviewSession, InterviewResponse, ResumeUpload
+from .models import InterviewSession, InterviewResponse, ResumeUpload, InterviewReport
 from .services.llm_service import generate_interviewer_text
 from .services.scoring_service import score_answer
 from .services.flow_service import get_next_step, get_remaining, is_technical_role
@@ -199,25 +199,6 @@ class RestartInterviewView(APIView):
         )
 
 
-class InterviewReport(APIView):
-    """GET /api/report/{session_id}/"""
-    def get(self, request, session_id):
-        try:
-            session = InterviewSession.objects.get(id=session_id)
-            # Generate report even if interview is not marked as completed
-            report_text = generate_report(session)
-            if request.query_params.get("format") == "text":
-                return HttpResponse(report_text, content_type="text/plain")
-            return Response({
-                "candidate": session.candidate_name,
-                "status": "completed" if session.completed else "incomplete",
-                "role": session.role,
-                "report": report_text
-            })
-        except InterviewSession.DoesNotExist:
-            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
-
-
 class SessionList(APIView):
     """List all sessions."""
     def get(self, request):
@@ -349,4 +330,80 @@ class ResumeUploadView(APIView):
             return Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             print(f"Resume upload error: {str(e)}")
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ReportsList(APIView):
+    """GET /api/reports/ - List all available reports"""
+    def get(self, request):
+        try:
+            # Get all sessions that have reports (either completed or with responses)
+            sessions_with_reports = []
+            
+            # Get completed sessions first
+            completed_sessions = InterviewSession.objects.filter(completed=True).order_by('-created_at')
+            for session in completed_sessions:
+                # Check if report exists or can be generated
+                if InterviewReport.objects.filter(session=session).exists() or session.responses.exists():
+                    sessions_with_reports.append({
+                        "session_id": session.id,
+                        "candidate_name": session.candidate_name or "Unknown",
+                        "role": session.role or "Unknown",
+                        "completed": session.completed,
+                        "created_at": session.created_at.isoformat(),
+                        "report_available": True
+                    })
+            
+            # Also get incomplete sessions that have responses (for partial reports)
+            incomplete_sessions = InterviewSession.objects.filter(completed=False).order_by('-created_at')
+            for session in incomplete_sessions:
+                if session.responses.exists():
+                    sessions_with_reports.append({
+                        "session_id": session.id,
+                        "candidate_name": session.candidate_name or "Unknown",
+                        "role": session.role or "Unknown",
+                        "completed": session.completed,
+                        "created_at": session.created_at.isoformat(),
+                        "report_available": True
+                    })
+            
+            return Response({
+                "reports": sessions_with_reports,
+                "total_count": len(sessions_with_reports)
+            })
+            
+        except Exception as e:
+            print(f"Error fetching reports list: {str(e)}")
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ReportDetail(APIView):
+    """GET /api/reports/{session_id}/ - Get detailed report for a specific session"""
+    def get(self, request, session_id):
+        try:
+            session = InterviewSession.objects.get(id=session_id)
+            
+            # Generate or retrieve the report
+            report_text = generate_report(session)
+            
+            # Get additional session details
+            responses_count = session.responses.count()
+            scored_responses = session.responses.exclude(score__isnull=True).count()
+            
+            return Response({
+                "session_id": session.id,
+                "candidate_name": session.candidate_name or "Unknown",
+                "role": session.role or "Unknown",
+                "completed": session.completed,
+                "created_at": session.created_at.isoformat(),
+                "responses_count": responses_count,
+                "scored_responses": scored_responses,
+                "report": report_text,
+                "has_resume": ResumeUpload.objects.filter(session=session).exists()
+            })
+            
+        except InterviewSession.DoesNotExist:
+            return Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            print(f"Error fetching report detail: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
