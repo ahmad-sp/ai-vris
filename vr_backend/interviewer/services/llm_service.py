@@ -77,8 +77,10 @@ Do NOT ask any more questions — this is the end of the session.
         return ask_llm(prompt)
 
     # 💼 4. Resume Questions Section
-    if current_step.lower() == "resume questions" and resume_summary:
-        prompt = f"""
+    if current_step.lower() == "resume questions":
+        if resume_summary:
+            print(f"[LLMService] Generating resume question with summary (length: {len(resume_summary)})")
+            prompt = f"""
 {role_context}
 
 Candidate Resume Summary:
@@ -93,7 +95,16 @@ Based on the candidate's resume summary above, ask specific, relevant questions 
 Ask questions that show you've actually reviewed their resume and are genuinely interested in their background.
 Make the questions specific to their experience, not generic.
 """
-        return ask_llm(prompt)
+            return ask_llm(prompt)
+        else:
+            print(f"[LLMService] ⚠️ Resume Questions step but no resume_summary provided!")
+            # Fallback to generic question if resume summary is missing
+            prompt = f"""
+{role_context}
+
+Ask a question about the candidate's professional background and experience relevant to the {role} position.
+"""
+            return ask_llm(prompt)
 
     # 💬 5. Ongoing Questions (including resume questions follow-up)
     if previous_answer:
