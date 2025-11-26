@@ -14,6 +14,12 @@ public class CandidateInfoForm : MonoBehaviour
     public TMP_Dropdown roleDropdown; // used when useDropdownForRole = true
     public TMP_InputField roleInput;  // used when useDropdownForRole = false
 
+    [Header("Resume Upload")]
+    public Button resumeSelectButton; // Button to select resume file
+    public TextMeshProUGUI resumeFileNameText; // Display selected file name
+    public TMP_InputField resumePathInput; // Optional: manual file path input
+    private string selectedResumePath = ""; // Store selected file path
+
     [Header("Buttons")]
     public Button submitButton;
 
@@ -57,11 +63,20 @@ public class CandidateInfoForm : MonoBehaviour
     [Header("Backend")]
     public string backendBaseUrl = "http://127.0.0.1:8000";
     public string interviewPath = "/api/interview/";
+    public string resumeUploadPath = "/api/resume-upload/";
 
     private void Awake()
     {
         if (submitButton != null)
             submitButton.onClick.AddListener(OnSubmitClicked);
+
+        // Setup resume select button
+        if (resumeSelectButton != null)
+            resumeSelectButton.onClick.AddListener(OnResumeSelectClicked);
+
+        // Setup resume path input to update selection when user types
+        if (resumePathInput != null)
+            resumePathInput.onEndEdit.AddListener(OnResumePathInputChanged);
 
         // Pre-fill from PlayerPrefs if available
         if (candidateNameInput != null && PlayerPrefs.HasKey(candidateNameKey))
@@ -84,6 +99,9 @@ public class CandidateInfoForm : MonoBehaviour
         {
             roleInput.text = PlayerPrefs.GetString(candidateRoleKey);
         }
+
+        // Initialize resume UI
+        UpdateResumeUI();
 
         // Hide question visual until submit succeeds
         if (questionImage != null)
@@ -120,6 +138,106 @@ public class CandidateInfoForm : MonoBehaviour
         Debug.Log($"Saved Candidate Info: name='{nameVal}', role='{roleVal}'");
 
         StartCoroutine(SubmitAndStartSession(nameVal, roleVal));
+    }
+
+    public void OnResumeSelectClicked()
+    {
+        // Try to use manual path input if available
+        if (resumePathInput != null && !string.IsNullOrEmpty(resumePathInput.text))
+        {
+            ValidateAndSetResumePath(resumePathInput.text.Trim());
+            return;
+        }
+
+        // For VR/Editor: Use native file picker if available
+        // Note: This requires platform-specific implementation
+        // For now, we'll use the manual path input approach
+        OpenFilePicker();
+    }
+
+    private void OnResumePathInputChanged(string path)
+    {
+        if (!string.IsNullOrEmpty(path))
+        {
+            ValidateAndSetResumePath(path.Trim());
+        }
+    }
+
+    private void ValidateAndSetResumePath(string path)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            selectedResumePath = "";
+            UpdateResumeUI();
+            return;
+        }
+
+        if (System.IO.File.Exists(path))
+        {
+            // Check if it's a PDF file
+            string extension = System.IO.Path.GetExtension(path).ToLower();
+            if (extension == ".pdf")
+            {
+                selectedResumePath = path;
+                UpdateResumeUI();
+                SetValidationMessage("");
+                Debug.Log($"Resume selected: {path}");
+            }
+            else
+            {
+                SetValidationMessage("Please select a PDF file (.pdf)");
+            }
+        }
+        else
+        {
+            SetValidationMessage("File not found at specified path.");
+        }
+    }
+
+    private void OpenFilePicker()
+    {
+        // Use native file picker to select PDF file
+        string selectedPath = FilePicker.PickPDFFile("Select Your Resume PDF", "");
+        
+        if (!string.IsNullOrEmpty(selectedPath))
+        {
+            ValidateAndSetResumePath(selectedPath);
+        }
+        else
+        {
+            // User cancelled or file picker not available
+            // Fallback to manual input if available
+            if (resumePathInput != null)
+            {
+                resumePathInput.Select();
+                resumePathInput.ActivateInputField();
+                SetValidationMessage("File picker cancelled. You can enter the file path manually above.");
+            }
+            else
+            {
+                Debug.Log("File picker cancelled or not available on this platform.");
+            }
+        }
+    }
+
+    private void UpdateResumeUI()
+    {
+        if (resumeFileNameText != null)
+        {
+            if (!string.IsNullOrEmpty(selectedResumePath))
+            {
+                resumeFileNameText.text = System.IO.Path.GetFileName(selectedResumePath);
+            }
+            else
+            {
+                resumeFileNameText.text = "No file selected";
+            }
+        }
+
+        if (resumePathInput != null && !string.IsNullOrEmpty(selectedResumePath))
+        {
+            resumePathInput.text = selectedResumePath;
+        }
     }
 
     private void SetValidationMessage(string msg)
@@ -194,6 +312,12 @@ public class CandidateInfoForm : MonoBehaviour
 
         PlayerPrefs.SetInt("session_id", resp.session_id);
         PlayerPrefs.Save();
+
+        // Upload resume if one was selected
+        if (!string.IsNullOrEmpty(selectedResumePath))
+        {
+            yield return StartCoroutine(UploadResume(resp.session_id, roleVal));
+        }
 
         UpdateMetaUI(resp);
 
@@ -282,6 +406,49 @@ public class CandidateInfoForm : MonoBehaviour
         else
         {
             Debug.LogWarning("VoiceRecorder not assigned; cannot start listening.");
+        }
+    }
+
+    private System.Collections.IEnumerator UploadResume(int sessionId, string role)
+    {
+        if (string.IsNullOrEmpty(selectedResumePath) || !System.IO.File.Exists(selectedResumePath))
+        {
+            Debug.LogWarning("Resume file not found or not selected. Skipping upload.");
+            yield break;
+        }
+
+        string url = backendBaseUrl.TrimEnd('/') + resumeUploadPath;
+        Debug.Log($"Uploading resume to: {url}");
+
+        // Read file bytes
+        byte[] fileData = System.IO.File.ReadAllBytes(selectedResumePath);
+        string fileName = System.IO.Path.GetFileName(selectedResumePath);
+
+        // Create multipart form data
+        WWWForm form = new WWWForm();
+        form.AddField("session_id", sessionId.ToString());
+        form.AddField("role", role);
+        form.AddBinaryData("resume", fileData, fileName, "application/pdf");
+
+        using (UnityWebRequest www = UnityWebRequest.Post(url, form))
+        {
+            www.timeout = 60; // 60 second timeout for file upload
+            yield return www.SendWebRequest();
+
+            if (www.result != UnityWebRequest.Result.Success)
+            {
+                Debug.LogError($"Resume upload failed: {www.error} - {www.downloadHandler?.text}");
+                SetValidationMessage("Resume upload failed. Interview will continue without resume.");
+            }
+            else
+            {
+                Debug.Log($"✅ Resume uploaded successfully: {www.downloadHandler.text}");
+                // Optionally show success message
+                if (validationMessage != null)
+                {
+                    validationMessage.text = "Resume uploaded successfully!";
+                }
+            }
         }
     }
 
