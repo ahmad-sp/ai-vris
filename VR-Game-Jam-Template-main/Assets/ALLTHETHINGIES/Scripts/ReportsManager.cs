@@ -11,6 +11,7 @@ public class ReportsManager : MonoBehaviour
     public GameObject reportsListPanel;
     public GameObject reportDetailPanel;
     public GameObject reportItemPrefab;
+    public GameObject mainMenu;
     public Transform reportListContainer;
     public TextMeshProUGUI loadingText;
     public TextMeshProUGUI errorText;
@@ -23,6 +24,7 @@ public class ReportsManager : MonoBehaviour
     private List<ReportData> reports = new List<ReportData>();
 
     [System.Serializable]
+    
     public class ReportData
     {
         public int session_id;
@@ -154,5 +156,9 @@ public class ReportsManager : MonoBehaviour
     {
         reportsListPanel.SetActive(true);
         reportDetailPanel.SetActive(false);
+    }
+    public void BackToMenu()
+    {
+        UnityEngine.SceneManagement.SceneManager.LoadScene("Main menu");
     }
 }

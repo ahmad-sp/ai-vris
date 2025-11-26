@@ -35,6 +35,8 @@ public class InterviewSessionManager : MonoBehaviour
     private bool isPlayingTts = false;
     private Coroutine reportFetchRoutine;
 
+    
+
     private void Awake()
     {
         if (vad != null)
