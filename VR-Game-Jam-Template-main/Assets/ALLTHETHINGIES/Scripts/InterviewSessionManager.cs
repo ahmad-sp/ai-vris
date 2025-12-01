@@ -441,7 +441,7 @@ public class InterviewSessionManager : MonoBehaviour
         }
 
         // Construct the report URL using the base URL and session ID
-        string finalUrl = $"{backendBaseUrl.TrimEnd('/')}/api/report/{sessionId}/";
+        string finalUrl = $"{backendBaseUrl.TrimEnd('/')}/api/reports/{sessionId}/";
         Debug.Log($"[Report] Fetching report from: {finalUrl}");
 
         reportFetchRoutine = StartCoroutine(FetchAndDisplayReport(finalUrl));
