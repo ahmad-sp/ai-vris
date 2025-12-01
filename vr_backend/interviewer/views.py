@@ -8,7 +8,7 @@ from rest_framework import status
 from django.conf import settings
 from django.http import HttpResponse
 
-from .models import InterviewSession, InterviewResponse, ResumeUpload
+from .models import InterviewSession, InterviewResponse, ResumeUpload, InterviewReport
 from .services.llm_service import generate_interviewer_text
 from .services.scoring_service import score_answer
 from .services.flow_service import get_next_step, get_remaining, is_technical_role
@@ -30,7 +30,7 @@ DEFAULT_SECTION_FLOW = [
 MAX_QUESTIONS = {
     "Greeting": 2,
     "Introduction": 3,
-    "Resume Questions": 3,
+    "Resume Questions": 5,
     "Technical": 5,
     "Behavioral/Situational": 3,
     "Wrap-Up": 1  # Only one closing message
@@ -113,18 +113,23 @@ class InterviewStep(APIView):
                     "audio_url": None,
                     "remaining_sections": 0,
                     "remaining_questions": 0,
-                    "report_url": request.build_absolute_uri(f"/api/report/{session.id}/"),
+                    "report_url": request.build_absolute_uri(f"/api/reports/{session.id}/"),
                 })
 
             # 🧠 Generate interviewer text dynamically
+            # Refresh session to ensure we have latest data (especially resume)
+            session.refresh_from_db()
             resume_summary = None
             if current_step == "Resume Questions":
                 try:
-                    resume = session.resume
+                    resume = ResumeUpload.objects.get(session=session)
                     resume_summary = resume.summary
+                    print(f"[Interview] Resume Questions step - Found resume with summary length: {len(resume_summary) if resume_summary else 0}")
                 except ResumeUpload.DoesNotExist:
                     resume_summary = None
+                    print(f"[Interview] ⚠️ Resume Questions step but no resume found for session {session.id}")
             
+            print(f"[Interview] Generating question for step '{current_step}', has_resume_summary={resume_summary is not None}")
             interviewer_text = generate_interviewer_text(session.role, current_step, answer, resume_summary)
 
             # 🚪 If Exit or Wrap-Up step, close interview gracefully
@@ -141,7 +146,7 @@ class InterviewStep(APIView):
                     "audio_url": audio_url,
                     "remaining_sections": 0,
                     "remaining_questions": 0,
-                    "report_url": request.build_absolute_uri(f"/api/report/{session.id}/"),
+                    "report_url": request.build_absolute_uri(f"/api/reports/{session.id}/"),
                 })
 
             # 🗣️ Store interviewer question and convert to speech
@@ -150,7 +155,10 @@ class InterviewStep(APIView):
 
             # 🔁 Move to next step if section done
             if asked_questions + 1 >= max_questions:  # If next question would exceed max
+                # Refresh session from database to ensure we have latest resume data
+                session.refresh_from_db()
                 next_step = get_next_step(current_step, session.role, session)
+                print(f"[Interview] Moving from '{current_step}' to '{next_step}' (asked_questions={asked_questions + 1}, max={max_questions})")
                 session.current_step = next_step
                 if next_step == "Exit":
                     session.completed = True
@@ -164,7 +172,7 @@ class InterviewStep(APIView):
             remaining_sections, remaining_questions = get_remaining(session)
             report_url = None
             if session.completed:
-                report_url = request.build_absolute_uri(f"/api/report/{session.id}/")
+                report_url = request.build_absolute_uri(f"/api/reports/{session.id}/")
 
             return Response({
                 "session_id": session.id,
@@ -197,25 +205,6 @@ class RestartInterviewView(APIView):
             {"message": "Fresh interview session started.", "session_id": session.id},
             status=status.HTTP_201_CREATED,
         )
-
-
-class InterviewReport(APIView):
-    """GET /api/report/{session_id}/"""
-    def get(self, request, session_id):
-        try:
-            session = InterviewSession.objects.get(id=session_id)
-            # Generate report even if interview is not marked as completed
-            report_text = generate_report(session)
-            if request.query_params.get("format") == "text":
-                return HttpResponse(report_text, content_type="text/plain")
-            return Response({
-                "candidate": session.candidate_name,
-                "status": "completed" if session.completed else "incomplete",
-                "role": session.role,
-                "report": report_text
-            })
-        except InterviewSession.DoesNotExist:
-            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
 
 
 class SessionList(APIView):
@@ -338,6 +327,9 @@ class ResumeUploadView(APIView):
                 role=role
             )
             
+            print(f"[ResumeUpload] Resume saved successfully for session {session.id}, resume_id={resume.id}")
+            print(f"[ResumeUpload] Resume summary length: {len(result['summary'])} characters")
+            
             return Response({
                 "success": True,
                 "message": "Resume uploaded and processed successfully",
@@ -349,4 +341,80 @@ class ResumeUploadView(APIView):
             return Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             print(f"Resume upload error: {str(e)}")
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ReportsList(APIView):
+    """GET /api/reports/ - List all available reports"""
+    def get(self, request):
+        try:
+            # Get all sessions that have reports (either completed or with responses)
+            sessions_with_reports = []
+            
+            # Get completed sessions first
+            completed_sessions = InterviewSession.objects.filter(completed=True).order_by('-created_at')
+            for session in completed_sessions:
+                # Check if report exists or can be generated
+                if InterviewReport.objects.filter(session=session).exists() or session.responses.exists():
+                    sessions_with_reports.append({
+                        "session_id": session.id,
+                        "candidate_name": session.candidate_name or "Unknown",
+                        "role": session.role or "Unknown",
+                        "completed": session.completed,
+                        "created_at": session.created_at.isoformat(),
+                        "report_available": True
+                    })
+            
+            # Also get incomplete sessions that have responses (for partial reports)
+            incomplete_sessions = InterviewSession.objects.filter(completed=False).order_by('-created_at')
+            for session in incomplete_sessions:
+                if session.responses.exists():
+                    sessions_with_reports.append({
+                        "session_id": session.id,
+                        "candidate_name": session.candidate_name or "Unknown",
+                        "role": session.role or "Unknown",
+                        "completed": session.completed,
+                        "created_at": session.created_at.isoformat(),
+                        "report_available": True
+                    })
+            
+            return Response({
+                "reports": sessions_with_reports,
+                "total_count": len(sessions_with_reports)
+            })
+            
+        except Exception as e:
+            print(f"Error fetching reports list: {str(e)}")
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ReportDetail(APIView):
+    """GET /api/reports/{session_id}/ - Get detailed report for a specific session"""
+    def get(self, request, session_id):
+        try:
+            session = InterviewSession.objects.get(id=session_id)
+            
+            # Generate or retrieve the report
+            report_text = generate_report(session)
+            
+            # Get additional session details
+            responses_count = session.responses.count()
+            scored_responses = session.responses.exclude(score__isnull=True).count()
+            
+            return Response({
+                "session_id": session.id,
+                "candidate_name": session.candidate_name or "Unknown",
+                "role": session.role or "Unknown",
+                "completed": session.completed,
+                "created_at": session.created_at.isoformat(),
+                "responses_count": responses_count,
+                "scored_responses": scored_responses,
+                "report": report_text,
+                "has_resume": ResumeUpload.objects.filter(session=session).exists()
+            })
+            
+        except InterviewSession.DoesNotExist:
+            return Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            print(f"Error fetching report detail: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

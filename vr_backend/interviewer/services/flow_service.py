@@ -1,5 +1,5 @@
 from .llm_service import ask_llm
-from interviewer.models import InterviewResponse
+from interviewer.models import InterviewResponse, ResumeUpload
 
 # Dynamic section flow
 STEPS_ORDER = [
@@ -103,11 +103,22 @@ def get_next_step(current_step, role=None, session=None):
     
     # Skip Resume Questions if no resume uploaded
     if next_step == "Resume Questions" and session:
+        # Refresh session from database to ensure we have latest data
         try:
-            session.resume  # Check if resume exists
+            session.refresh_from_db()
         except:
+            pass  # If refresh fails, continue with current session object
+        
+        # Properly check if resume exists using the model
+        has_resume = ResumeUpload.objects.filter(session=session).exists()
+        print(f"[FlowService] Checking resume for session {session.id} (current_step={session.current_step}): has_resume={has_resume}")
+        
+        if not has_resume:
             # No resume uploaded, skip to Technical
+            print(f"[FlowService] ⚠️ No resume found for session {session.id}, skipping Resume Questions → Technical")
             return "Technical"
+        else:
+            print(f"[FlowService] ✅ Resume found for session {session.id}, proceeding to Resume Questions")
     
     return next_step
 
@@ -125,12 +136,11 @@ def get_remaining(session):
     for i in range(current_index + 1, len(steps) - 1):  # Exclude Exit step
         step = steps[i]
         if step == "Resume Questions":
-            try:
-                session.resume  # Check if resume exists
+            # Properly check if resume exists
+            has_resume = ResumeUpload.objects.filter(session=session).exists()
+            if has_resume:
                 remaining_sections += 1
-            except:
-                # No resume, skip this section
-                continue
+            # If no resume, skip this section (continue to next)
         else:
             remaining_sections += 1
     

@@ -32,8 +32,8 @@ public class InterviewSessionManager : MonoBehaviour
     public string backendBaseUrl = "http://127.0.0.1:8000";
     public string interviewPath = "/api/interview/";
 
-    private bool isPlayingTts = false;
     private Coroutine reportFetchRoutine;
+    private bool initialPromptHandled = false; // Flag to prevent Start() from overriding initial prompt
 
     private void Awake()
     {
@@ -48,13 +48,44 @@ public class InterviewSessionManager : MonoBehaviour
     void Start()
     {
         Debug.Log("[InterviewSessionManager] Start()");
+        
+        // If initial prompt was already handled (from CandidateInfoForm), don't override it
+        if (initialPromptHandled)
+        {
+            Debug.Log("[InterviewSessionManager] Initial prompt already handled, skipping Start() flow.");
+            return;
+        }
+        
+        // Check if we have an initial prompt stored in PlayerPrefs (from scene transition)
+        int hasInitialPrompt = PlayerPrefs.GetInt("has_initial_prompt", 0);
+        if (hasInitialPrompt == 1)
+        {
+            string storedQuestion = PlayerPrefs.GetString("initial_question", "");
+            string storedAudioUrl = PlayerPrefs.GetString("initial_audio_url", "");
+            
+            if (!string.IsNullOrEmpty(storedQuestion))
+            {
+                Debug.Log($"[InterviewSessionManager] Found stored initial prompt in PlayerPrefs. Question: {storedQuestion.Substring(0, Mathf.Min(50, storedQuestion.Length))}...");
+                // Clear the flag so we don't use it again
+                PlayerPrefs.DeleteKey("has_initial_prompt");
+                PlayerPrefs.DeleteKey("initial_question");
+                PlayerPrefs.DeleteKey("initial_audio_url");
+                PlayerPrefs.Save();
+                
+                // Use the stored prompt
+                initialPromptHandled = true;
+                StartCoroutine(HandleInitialPrompt(storedQuestion, storedAudioUrl));
+                return;
+            }
+        }
+        
         int sessionId = PlayerPrefs.GetInt("session_id", 0);
         Debug.Log($"[InterviewSessionManager] Found sessionId = {sessionId}");
 
         if (sessionId != 0)
         {
-            // start server-based flow
-            StartCoroutine(TryStartFromServer(sessionId));
+            // Use the regular interview endpoint to get the current question
+            StartCoroutine(FetchCurrentQuestion(sessionId));
         }
         else
         {
@@ -66,23 +97,47 @@ public class InterviewSessionManager : MonoBehaviour
     // Public entry to handle the very first prompt from CandidateInfoForm
     public void StartWithPrompt(string question, string audioUrl)
     {
+        Debug.Log($"[InterviewSessionManager] StartWithPrompt called with question: {question?.Substring(0, Mathf.Min(50, question?.Length ?? 0))}..., audioUrl: {audioUrl}");
+        initialPromptHandled = true; // Mark that we've handled the initial prompt
         StartCoroutine(HandleInitialPrompt(question, audioUrl));
     }
 
     private IEnumerator HandleInitialPrompt(string question, string audioUrl)
     {
+        Debug.Log($"[InterviewSessionManager] HandleInitialPrompt - Setting question text and playing audio");
+        
         if (questionText != null && !string.IsNullOrEmpty(question))
+        {
             questionText.text = question;
+            Debug.Log($"[InterviewSessionManager] Question text set: {question.Substring(0, Mathf.Min(100, question.Length))}...");
+        }
+        else
+        {
+            Debug.LogWarning($"[InterviewSessionManager] Question text is null or empty. questionText={questionText != null}, question={!string.IsNullOrEmpty(question)}");
+        }
+        
         if (onQuestionReceived != null && !string.IsNullOrEmpty(question))
             onQuestionReceived.Invoke(question);
 
         if (!string.IsNullOrEmpty(audioUrl) && questionAudioSource != null)
         {
+            Debug.Log($"[InterviewSessionManager] Downloading and playing audio from: {audioUrl}");
             yield return StartCoroutine(DownloadAndPlay(audioUrl));
+        }
+        else
+        {
+            Debug.LogWarning($"[InterviewSessionManager] Audio URL or AudioSource is null. audioUrl={!string.IsNullOrEmpty(audioUrl)}, audioSource={questionAudioSource != null}");
         }
 
         if (vad != null)
+        {
+            Debug.Log("[InterviewSessionManager] Starting VAD listening");
             vad.StartListening();
+        }
+        else
+        {
+            Debug.LogWarning("[InterviewSessionManager] VAD is null, cannot start listening");
+        }
     }
 
     private void OnDestroy()
@@ -101,68 +156,82 @@ public class InterviewSessionManager : MonoBehaviour
         StartCoroutine(PostAnswerAndHandleNext(transcript));
     }
 
-    private IEnumerator TryStartFromServer(int sessionId)
+    private IEnumerator FetchCurrentQuestion(int sessionId)
     {
-        // Build URL: backendBaseUrl + interviewPath + sessionId + "/start/"
-        string url = backendBaseUrl.TrimEnd('/') + "/" + interviewPath.Trim('/') + "/" + sessionId + "/start/";
-        Debug.Log("[InterviewSessionManager] Requesting start from: " + url);
+        // Use the regular interview endpoint to get the current question
+        // This is called when scene loads and we need to fetch the current state
+        string url = backendBaseUrl.TrimEnd('/') + interviewPath;
+        Debug.Log($"[InterviewSessionManager] Fetching current question from: {url}");
 
-        using (UnityWebRequest req = UnityWebRequest.Get(url))
+        // Create a POST request with session_id to get current question
+        var request = new UnityWebRequest(url, UnityWebRequest.kHttpVerbPOST);
+        var payload = new System.Text.StringBuilder();
+        payload.Append("{");
+        payload.Append($"\"session_id\": {sessionId}");
+        payload.Append("}");
+        
+        byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(payload.ToString());
+        request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+        request.downloadHandler = new DownloadHandlerBuffer();
+        request.SetRequestHeader("Content-Type", "application/json");
+        request.timeout = 10;
+
+        yield return request.SendWebRequest();
+
+        if (request.result != UnityWebRequest.Result.Success)
         {
-            req.timeout = 10;
-            yield return req.SendWebRequest();
-
-#if UNITY_2020_1_OR_NEWER
-            if (req.result == UnityWebRequest.Result.ConnectionError)
-#else
-            if (req.isNetworkError)
-#endif
-            {
-                Debug.LogWarning("[InterviewSessionManager] Network error while fetching start: " + req.error);
-                StartInterviewLocally();
-                yield break;
-            }
-
-#if UNITY_2020_1_OR_NEWER
-            if (req.result == UnityWebRequest.Result.ProtocolError)
-#else
-            if (req.isHttpError)
-#endif
-            {
-                Debug.LogWarning($"[InterviewSessionManager] Server returned HTTP {req.responseCode}. Body: {req.downloadHandler.text}");
-                // 404 or error -> fallback to local
-                StartInterviewLocally();
-                yield break;
-            }
-
-            string json = req.downloadHandler.text;
-            Debug.Log("[InterviewSessionManager] Start response: " + json);
-
-            // Expecting JSON like: { "question": "...", "audio_url": "http://..." }
-            string question = ExtractJsonString(json, "question");
-            string audioUrl = ExtractJsonString(json, "audio_url");
-
-            if (!string.IsNullOrEmpty(question))
-            {
-                if (questionText != null) questionText.text = question;
-                else Debug.LogWarning("[InterviewSessionManager] questionText is null, can't show question.");
-            }
-            else
-            {
-                Debug.LogWarning("[InterviewSessionManager] No question field in response.");
-            }
-
-            if (!string.IsNullOrEmpty(audioUrl) && questionAudioSource != null)
-            {
-                Debug.Log("[InterviewSessionManager] Downloading audio: " + audioUrl);
-                yield return StartCoroutine(DownloadAndPlayAudio(audioUrl));
-            }
-            else
-            {
-                Debug.Log("[InterviewSessionManager] No audio URL or audio source; starting VAD/listen now.");
-                StartInterviewListening();
-            }
+            Debug.LogWarning($"[InterviewSessionManager] Failed to fetch current question: {request.error}");
+            StartInterviewLocally();
+            yield break;
         }
+
+        string json = request.downloadHandler.text;
+        Debug.Log($"[InterviewSessionManager] Current question response: {json}");
+
+        // Parse the response (cannot use yield in try-catch, so parse first)
+        InterviewResponse response = null;
+        try
+        {
+            response = JsonUtility.FromJson<InterviewResponse>(json);
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[InterviewSessionManager] Error parsing response: {ex.Message}");
+            StartInterviewLocally();
+            yield break;
+        }
+
+        if (response != null && !string.IsNullOrEmpty(response.question))
+        {
+            Debug.Log($"[InterviewSessionManager] Setting question from server: {response.question.Substring(0, Mathf.Min(50, response.question.Length))}...");
+            if (questionText != null) questionText.text = response.question;
+            if (onQuestionReceived != null) onQuestionReceived.Invoke(response.question);
+
+            if (!string.IsNullOrEmpty(response.audio_url) && questionAudioSource != null)
+            {
+                yield return StartCoroutine(DownloadAndPlay(response.audio_url));
+            }
+            
+            StartInterviewListening();
+        }
+        else
+        {
+            Debug.LogWarning("[InterviewSessionManager] No question in response, starting locally");
+            StartInterviewLocally();
+        }
+    }
+
+    [System.Serializable]
+    private class InterviewResponse
+    {
+        public int session_id;
+        public string step;
+        public string question;
+        public string audio_url;
+        public int remaining_sections;
+        public int remaining_questions;
+        public string report_url;
+        public string error;
     }
 
     // Simple JSON extractor (very basic; adapt if your server JSON is nested)
@@ -311,7 +380,6 @@ public class InterviewSessionManager : MonoBehaviour
 
     private IEnumerator DownloadAndPlay(string url)
     {
-        isPlayingTts = true;
         using (var req = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.MPEG))
         {
             yield return req.SendWebRequest();
@@ -328,7 +396,6 @@ public class InterviewSessionManager : MonoBehaviour
                     yield return null;
             }
         }
-        isPlayingTts = false;
     }
 
     // Call from Unity UI button to end interview early and generate report
@@ -364,9 +431,6 @@ public class InterviewSessionManager : MonoBehaviour
         if (vad != null)
             vad.StopListening();
 
-        if (questionText != null)
-            questionText.text = "Interview ended. Generating report (this may take ~25 seconds)...";
-
         string reportUrl = null;
         var body = req.downloadHandler != null ? req.downloadHandler.text : null;
         if (!string.IsNullOrEmpty(body))
@@ -386,22 +450,71 @@ public class InterviewSessionManager : MonoBehaviour
         if (reportTab != null)
             reportTab.SetActive(true);
 
-        // Show 10-second countdown
-        for (int i = 10; i > 0; i--)
-        {
-            if (reportText != null)
-                reportText.text = $"Generating your report...\nStarting in {i} seconds";
-            yield return new WaitForSeconds(1f);
-        }
+        if (questionText != null)
+            questionText.text = "Interview ended. Generating report...";
 
+        // Show countdown while waiting for report generation
         if (reportText != null)
-            reportText.text = "Finalizing your report...";
+            reportText.text = "Generating your report...\nThis may take a few moments...";
 
-        // Wait a bit more for the final message to be visible
-        yield return new WaitForSeconds(1f);
-
-        // Now handle the interview completion with the report URL
+        // Wait for report to be generated with countdown
+        yield return StartCoroutine(WaitForReportWithCountdown(sessionId));
+        
+        // Now fetch and display the report
         HandleInterviewCompleted(reportUrl);
+    }
+
+    private IEnumerator WaitForReportWithCountdown(int sessionId)
+    {
+        string reportUrl = $"{backendBaseUrl.TrimEnd('/')}/api/reports/{sessionId}/";
+        int maxWaitTime = 30; // Maximum 30 seconds
+        int elapsed = 0;
+        int checkInterval = 2; // Check every 2 seconds
+        
+        Debug.Log($"[Interview] Waiting for report generation at: {reportUrl}");
+        
+        while (elapsed < maxWaitTime)
+        {
+            int remaining = maxWaitTime - elapsed;
+            
+            // Update countdown message
+            if (reportText != null)
+            {
+                reportText.text = $"Generating your report...\nPlease wait {remaining} seconds";
+            }
+            
+            // Try to fetch the report
+            using (UnityWebRequest req = UnityWebRequest.Get(reportUrl))
+            {
+                req.timeout = 5;
+                yield return req.SendWebRequest();
+                
+                if (req.result == UnityWebRequest.Result.Success)
+                {
+                    // Check if we got a valid report (not an error)
+                    string responseText = req.downloadHandler.text;
+                    if (!string.IsNullOrEmpty(responseText) && 
+                        !responseText.Contains("\"error\"") && 
+                        responseText.Length > 100) // Report should be substantial
+                    {
+                        Debug.Log("[Interview] Report is ready!");
+                        if (reportText != null)
+                            reportText.text = "Report generated successfully!";
+                        yield return new WaitForSeconds(0.5f);
+                        yield break; // Report is ready, exit
+                    }
+                }
+            }
+            
+            // Wait before next check
+            yield return new WaitForSeconds(checkInterval);
+            elapsed += checkInterval;
+        }
+        
+        // Timeout reached, proceed anyway
+        Debug.LogWarning("[Interview] Report generation timeout, proceeding anyway");
+        if (reportText != null)
+            reportText.text = "Report generation taking longer than expected...\nFetching report...";
     }
 
     private void HandleInterviewCompleted(string reportUrl)
@@ -439,7 +552,7 @@ public class InterviewSessionManager : MonoBehaviour
         }
 
         // Construct the report URL using the base URL and session ID
-        string finalUrl = $"{backendBaseUrl.TrimEnd('/')}/api/report/{sessionId}/";
+        string finalUrl = $"{backendBaseUrl.TrimEnd('/')}/api/reports/{sessionId}/";
         Debug.Log($"[Report] Fetching report from: {finalUrl}");
 
         reportFetchRoutine = StartCoroutine(FetchAndDisplayReport(finalUrl));
