@@ -1,0 +1,68 @@
+    <!-- index.html -->
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+  <title>Mobile Orientation Sender</title>
+</head>
+<body>
+  <h3>Orientation sender</h3>
+  <div>
+    <label>WebSocket URL: <input id="wsUrl" style="width:250px" /></label>
+    <button id="connectBtn">Connect</button>
+    <button id="startBtn" disabled>Start Sending</button>
+  </div>
+  <pre id="status"></pre>
+
+  <script>
+    let ws;
+    const status = document.getElementById('status');
+    const wsUrlInput = document.getElementById('wsUrl');
+    const connectBtn = document.getElementById('connectBtn');
+    const startBtn = document.getElementById('startBtn');
+
+    connectBtn.onclick = () => {
+      const url = wsUrlInput.value.trim();
+      if (!url) return alert("Enter ws://<PC_IP>:8080/orient");
+      ws = new WebSocket(url);
+      ws.onopen = () => { status.textContent = "Connected"; startBtn.disabled = false; };
+      ws.onclose = () => { status.textContent = "Closed"; startBtn.disabled = true; };
+      ws.onerror = (e) => { status.textContent = "Error: " + e; };
+      ws.onmessage = (m) => { /* server messages if any */ };
+    };
+
+    let sending = false;
+    let handle = null;
+
+    startBtn.onclick = async () => {
+      if (!sending) {
+        // on some browsers you need to request permission:
+        if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+          let res = await DeviceOrientationEvent.requestPermission().catch(()=>'denied');
+          if (res !== 'granted') { alert('Permission denied for device orientation'); return; }
+        }
+        window.addEventListener('deviceorientation', onDeviceOrientation, true);
+        sending = true;
+        startBtn.textContent = "Stop Sending";
+      } else {
+        window.removeEventListener('deviceorientation', onDeviceOrientation, true);
+        sending = false;
+        startBtn.textContent = "Start Sending";
+      }
+    };
+
+    function onDeviceOrientation(evt) {
+      const payload = {
+        alpha: evt.alpha || 0,  // z (compass)
+        beta: evt.beta || 0,    // x (front-back)
+        gamma: evt.gamma || 0,  // y (left-right)
+        timestamp: Date.now()
+      };
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(payload));
+      }
+      status.textContent = JSON.stringify(payload);
+    }
+  </script>
+</body>
+</html>
