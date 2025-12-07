@@ -30,7 +30,7 @@ DEFAULT_SECTION_FLOW = [
 MAX_QUESTIONS = {
     "Greeting": 2,
     "Introduction": 3,
-    "Resume Questions": 5,
+    "Resume Questions": 3,
     "Technical": 5,
     "Behavioral/Situational": 3,
     "Wrap-Up": 1  # Only one closing message
@@ -113,23 +113,18 @@ class InterviewStep(APIView):
                     "audio_url": None,
                     "remaining_sections": 0,
                     "remaining_questions": 0,
-                    "report_url": request.build_absolute_uri(f"/api/reports/{session.id}/"),
+                    "report_url": request.build_absolute_uri(f"/api/report/{session.id}/"),
                 })
 
             # 🧠 Generate interviewer text dynamically
-            # Refresh session to ensure we have latest data (especially resume)
-            session.refresh_from_db()
             resume_summary = None
             if current_step == "Resume Questions":
                 try:
-                    resume = ResumeUpload.objects.get(session=session)
+                    resume = session.resume
                     resume_summary = resume.summary
-                    print(f"[Interview] Resume Questions step - Found resume with summary length: {len(resume_summary) if resume_summary else 0}")
                 except ResumeUpload.DoesNotExist:
                     resume_summary = None
-                    print(f"[Interview] ⚠️ Resume Questions step but no resume found for session {session.id}")
             
-            print(f"[Interview] Generating question for step '{current_step}', has_resume_summary={resume_summary is not None}")
             interviewer_text = generate_interviewer_text(session.role, current_step, answer, resume_summary)
 
             # 🚪 If Exit or Wrap-Up step, close interview gracefully
@@ -146,7 +141,7 @@ class InterviewStep(APIView):
                     "audio_url": audio_url,
                     "remaining_sections": 0,
                     "remaining_questions": 0,
-                    "report_url": request.build_absolute_uri(f"/api/reports/{session.id}/"),
+                    "report_url": request.build_absolute_uri(f"/api/report/{session.id}/"),
                 })
 
             # 🗣️ Store interviewer question and convert to speech
@@ -155,10 +150,7 @@ class InterviewStep(APIView):
 
             # 🔁 Move to next step if section done
             if asked_questions + 1 >= max_questions:  # If next question would exceed max
-                # Refresh session from database to ensure we have latest resume data
-                session.refresh_from_db()
                 next_step = get_next_step(current_step, session.role, session)
-                print(f"[Interview] Moving from '{current_step}' to '{next_step}' (asked_questions={asked_questions + 1}, max={max_questions})")
                 session.current_step = next_step
                 if next_step == "Exit":
                     session.completed = True
@@ -172,7 +164,7 @@ class InterviewStep(APIView):
             remaining_sections, remaining_questions = get_remaining(session)
             report_url = None
             if session.completed:
-                report_url = request.build_absolute_uri(f"/api/reports/{session.id}/")
+                report_url = request.build_absolute_uri(f"/api/report/{session.id}/")
 
             return Response({
                 "session_id": session.id,
@@ -326,9 +318,6 @@ class ResumeUploadView(APIView):
                 summary=result["summary"],
                 role=role
             )
-            
-            print(f"[ResumeUpload] Resume saved successfully for session {session.id}, resume_id={resume.id}")
-            print(f"[ResumeUpload] Resume summary length: {len(result['summary'])} characters")
             
             return Response({
                 "success": True,

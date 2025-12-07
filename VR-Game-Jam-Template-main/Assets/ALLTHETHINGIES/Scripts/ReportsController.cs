@@ -30,7 +30,7 @@ public class ReportsController : MonoBehaviour
 
     [Header("Server endpoints (set these in Inspector)")]
     public string sessionsEndpoint = "http://127.0.0.1:8000/api/interview/sessions/"; // returns array
-    public string reportBaseEndpoint = "http://127.0.0.1:8000/api/reports/"; // append <session_id>/
+    public string reportBaseEndpoint = "http://127.0.0.1:8000/api/report/"; // append <session_id>/
 
     [Header("Networking")]
     public float fetchTimeoutSeconds = 8f;

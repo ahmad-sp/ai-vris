@@ -20,11 +20,6 @@ public class CandidateInfoForm : MonoBehaviour
     public TMP_InputField resumePathInput; // Optional: manual file path input
     private string selectedResumePath = ""; // Store selected file path
 
-    [Header("Processing UI")]
-    public GameObject processingPanel; // Panel to show during resume processing
-    public TextMeshProUGUI processingMessage; // Text to show processing status
-    public Image processingProgressBar; // Optional: progress bar fill
-
     [Header("Buttons")]
     public Button submitButton;
 
@@ -108,10 +103,6 @@ public class CandidateInfoForm : MonoBehaviour
         // Initialize resume UI
         UpdateResumeUI();
 
-        // Hide processing panel initially
-        if (processingPanel != null)
-            processingPanel.SetActive(false);
-
         // Hide question visual until submit succeeds
         if (questionImage != null)
             questionImage.gameObject.SetActive(false);
@@ -146,16 +137,7 @@ public class CandidateInfoForm : MonoBehaviour
         SetValidationMessage("");
         Debug.Log($"Saved Candidate Info: name='{nameVal}', role='{roleVal}'");
 
-        // If resume is selected, upload and process it FIRST before creating session
-        if (!string.IsNullOrEmpty(selectedResumePath))
-        {
-            StartCoroutine(UploadResumeFirstThenStartSession(nameVal, roleVal));
-        }
-        else
-        {
-            // No resume, proceed directly to session creation
-            StartCoroutine(SubmitAndStartSession(nameVal, roleVal));
-        }
+        StartCoroutine(SubmitAndStartSession(nameVal, roleVal));
     }
 
     public void OnResumeSelectClicked()
@@ -284,72 +266,6 @@ public class CandidateInfoForm : MonoBehaviour
     {
         public string candidate_name;
         public string role;
-        public int session_id; // Optional: for existing sessions
-    }
-
-    private System.Collections.IEnumerator UploadResumeFirstThenStartSession(string nameVal, string roleVal)
-    {
-        // Step 1: Create a temporary session first (needed for resume upload)
-        var url = backendBaseUrl.TrimEnd('/') + interviewPath;
-        var payload = new InterviewCreateRequest { candidate_name = nameVal, role = roleVal };
-        var json = JsonUtility.ToJson(payload);
-
-        var request = new UnityWebRequest(url, UnityWebRequest.kHttpVerbPOST);
-        byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(json);
-        request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-        request.downloadHandler = new DownloadHandlerBuffer();
-        request.SetRequestHeader("Content-Type", "application/json");
-
-        yield return request.SendWebRequest();
-
-        if (request.result != UnityWebRequest.Result.Success)
-        {
-            var serverMsg = request.downloadHandler != null ? request.downloadHandler.text : null;
-            if (!string.IsNullOrEmpty(serverMsg))
-                SetValidationMessage(serverMsg);
-            else
-                SetValidationMessage("Submission failed. Please check your role and network.");
-            Debug.LogError($"Interview create failed: {request.error} - {request.downloadHandler.text}");
-            yield break;
-        }
-
-        var txt = request.downloadHandler.text;
-        InterviewCreateResponse tempResp = null;
-        try
-        {
-            tempResp = JsonUtility.FromJson<InterviewCreateResponse>(txt);
-        }
-        catch
-        {
-            Debug.LogError("Failed to parse interview create response: " + txt);
-        }
-
-        if (tempResp == null || tempResp.session_id == 0)
-        {
-            SetValidationMessage("Server error. Please check role and try again.");
-            yield break;
-        }
-
-        int sessionId = tempResp.session_id;
-        PlayerPrefs.SetInt("session_id", sessionId);
-        PlayerPrefs.Save();
-
-        // Step 2: Show processing UI and upload resume
-        if (processingPanel != null)
-            processingPanel.SetActive(true);
-        
-        if (processingMessage != null)
-            processingMessage.text = "Uploading resume...";
-
-        // Step 3: Upload resume with processing UI
-        yield return StartCoroutine(UploadResumeWithProcessing(sessionId, roleVal));
-
-        // Step 4: Resume is now processed, proceed with interview using the initial response
-        if (processingPanel != null)
-            processingPanel.SetActive(false);
-
-        // Step 5: Use the initial session response (resume is now processed and ready)
-        yield return StartCoroutine(ContinueWithInterview(tempResp));
     }
 
     private System.Collections.IEnumerator SubmitAndStartSession(string nameVal, string roleVal)
@@ -397,24 +313,17 @@ public class CandidateInfoForm : MonoBehaviour
         PlayerPrefs.SetInt("session_id", resp.session_id);
         PlayerPrefs.Save();
 
+        // Upload resume if one was selected
+        if (!string.IsNullOrEmpty(selectedResumePath))
+        {
+            yield return StartCoroutine(UploadResume(resp.session_id, roleVal));
+        }
+
         UpdateMetaUI(resp);
 
         // Show the question image only after a successful submit/session start
         if (questionImage != null)
             questionImage.gameObject.SetActive(true);
-
-        // Store initial question and audio in PlayerPrefs so InterviewSessionManager can use them after scene transition
-        if (!string.IsNullOrEmpty(resp.question))
-        {
-            PlayerPrefs.SetString("initial_question", resp.question);
-        }
-        if (!string.IsNullOrEmpty(resp.audio_url))
-        {
-            PlayerPrefs.SetString("initial_audio_url", resp.audio_url);
-        }
-        PlayerPrefs.SetInt("has_initial_prompt", 1);
-        PlayerPrefs.Save();
-        Debug.Log($"[CandidateInfoForm] Stored initial prompt in PlayerPrefs. Question: {resp.question?.Substring(0, Mathf.Min(50, resp.question?.Length ?? 0))}...");
 
         // If a loop manager exists, let it handle the initial prompt + VAD
         if (interviewManager != null)
@@ -500,7 +409,7 @@ public class CandidateInfoForm : MonoBehaviour
         }
     }
 
-    private System.Collections.IEnumerator UploadResumeWithProcessing(int sessionId, string role)
+    private System.Collections.IEnumerator UploadResume(int sessionId, string role)
     {
         if (string.IsNullOrEmpty(selectedResumePath) || !System.IO.File.Exists(selectedResumePath))
         {
@@ -509,18 +418,11 @@ public class CandidateInfoForm : MonoBehaviour
         }
 
         string url = backendBaseUrl.TrimEnd('/') + resumeUploadPath;
-        Debug.Log($"[ResumeUpload] Uploading resume to: {url} for session {sessionId}");
-
-        // Update UI: Uploading
-        if (processingMessage != null)
-            processingMessage.text = "Uploading resume file...";
-        if (processingProgressBar != null)
-            processingProgressBar.fillAmount = 0.1f;
+        Debug.Log($"Uploading resume to: {url}");
 
         // Read file bytes
         byte[] fileData = System.IO.File.ReadAllBytes(selectedResumePath);
         string fileName = System.IO.Path.GetFileName(selectedResumePath);
-        Debug.Log($"[ResumeUpload] File: {fileName}, Size: {fileData.Length} bytes");
 
         // Create multipart form data
         WWWForm form = new WWWForm();
@@ -535,123 +437,18 @@ public class CandidateInfoForm : MonoBehaviour
 
             if (www.result != UnityWebRequest.Result.Success)
             {
-                Debug.LogError($"[ResumeUpload] Upload failed: {www.error} - Response: {www.downloadHandler?.text}");
-                if (processingMessage != null)
-                    processingMessage.text = "Resume upload failed. Continuing without resume...";
-                yield return new WaitForSeconds(2f);
-                yield break;
-            }
-
-            string responseText = www.downloadHandler?.text ?? "";
-            Debug.Log($"[ResumeUpload] ✅ Upload successful! Response: {responseText}");
-            
-            // Update UI: Processing
-            if (processingMessage != null)
-                processingMessage.text = "Processing resume...\nExtracting and analyzing content...";
-            if (processingProgressBar != null)
-                processingProgressBar.fillAmount = 0.3f;
-        }
-
-            // Step 2: Wait for resume processing (parsing and summarization takes ~10 seconds)
-            // The backend processes resume synchronously, but we'll show a countdown for user feedback
-            float processingTime = 0f;
-            float expectedProcessingTime = 12f; // Expected ~10-12 seconds for processing
-            float checkInterval = 0.5f; // Update every 0.5 seconds for smooth progress
-
-            while (processingTime < expectedProcessingTime)
-            {
-                // Update progress bar and message
-                float progress = 0.3f + (processingTime / expectedProcessingTime) * 0.7f; // 30% to 100%
-                if (processingProgressBar != null)
-                    processingProgressBar.fillAmount = progress;
-
-                int remaining = Mathf.CeilToInt(expectedProcessingTime - processingTime);
-                if (processingMessage != null)
-                {
-                    string statusMsg = "Analyzing resume content...";
-                    if (processingTime < 3f)
-                        statusMsg = "Extracting text from PDF...";
-                    else if (processingTime < 7f)
-                        statusMsg = "Analyzing skills and experience...";
-                    else
-                        statusMsg = "Generating summary...";
-                    
-                    processingMessage.text = $"{statusMsg}\nPlease wait {remaining} seconds";
-                }
-
-                yield return new WaitForSeconds(checkInterval);
-                processingTime += checkInterval;
-            }
-
-            // Processing complete
-            Debug.Log("[ResumeUpload] ✅ Resume processing completed!");
-            if (processingMessage != null)
-                processingMessage.text = "Resume processed successfully!";
-            if (processingProgressBar != null)
-                processingProgressBar.fillAmount = 1.0f;
-            yield return new WaitForSeconds(1f);
-    }
-
-
-
-    private System.Collections.IEnumerator ContinueWithInterview(InterviewCreateResponse resp)
-    {
-        UpdateMetaUI(resp);
-
-        // Show the question image only after a successful submit/session start
-        if (questionImage != null)
-            questionImage.gameObject.SetActive(true);
-
-        // Store initial question and audio in PlayerPrefs so InterviewSessionManager can use them after scene transition
-        if (!string.IsNullOrEmpty(resp.question))
-        {
-            PlayerPrefs.SetString("initial_question", resp.question);
-        }
-        if (!string.IsNullOrEmpty(resp.audio_url))
-        {
-            PlayerPrefs.SetString("initial_audio_url", resp.audio_url);
-        }
-        PlayerPrefs.SetInt("has_initial_prompt", 1);
-        PlayerPrefs.Save();
-        Debug.Log($"[CandidateInfoForm] Stored initial prompt in PlayerPrefs. Question: {resp.question?.Substring(0, Mathf.Min(50, resp.question?.Length ?? 0))}...");
-
-        // If a loop manager exists, let it handle the initial prompt + VAD
-        if (interviewManager != null)
-        {
-            interviewManager.StartWithPrompt(resp.question, resp.audio_url);
-        }
-        else
-        {
-            // Handle interviewer prompt locally: show text, play audio, then begin listening
-            StartCoroutine(HandleInterviewerPrompt(resp));
-        }
-
-        // Hide only the visual container so this MonoBehaviour stays active for coroutines
-        if (formContainer != null)
-            formContainer.SetActive(false);
-
-        if (autoStartNextScene)
-        {
-            if (SceneTransitionManager.singleton != null)
-            {
-                SceneTransitionManager.singleton.GoToSceneAsync(nextSceneBuildIndex);
+                Debug.LogError($"Resume upload failed: {www.error} - {www.downloadHandler?.text}");
+                SetValidationMessage("Resume upload failed. Interview will continue without resume.");
             }
             else
             {
-                UnityEngine.SceneManagement.SceneManager.LoadScene(nextSceneBuildIndex);
+                Debug.Log($"✅ Resume uploaded successfully: {www.downloadHandler.text}");
+                // Optionally show success message
+                if (validationMessage != null)
+                {
+                    validationMessage.text = "Resume uploaded successfully!";
+                }
             }
-        }
-        
-        // Yield to ensure coroutine completes properly
-        yield return null;
-    }
-
-    private System.Collections.IEnumerator ClearValidationMessageAfterDelay(float delay)
-    {
-        yield return new WaitForSeconds(delay);
-        if (validationMessage != null)
-        {
-            validationMessage.text = "";
         }
     }
 
