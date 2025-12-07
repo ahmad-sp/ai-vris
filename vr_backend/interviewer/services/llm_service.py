@@ -9,8 +9,11 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 def ask_llm(prompt):
     """Send prompt safely to OpenRouter LLM and return text."""
     try:
+        print(f"[LLM] API Key exists: {bool(OPENROUTER_API_KEY)}")
+        print(f"[LLM] Prompt length: {len(prompt)}")
+        
         payload = {
-            "model": "x-ai/grok-4.1-fast:free",
+            "model": "google/gemma-3-27b-it:free",
             "messages": [
                 {
                     "role": "system",
@@ -29,12 +32,28 @@ def ask_llm(prompt):
             "Content-Type": "application/json",
         }
 
+        print(f"[LLM] Sending request to: {OPENROUTER_URL}")
         response = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=45)
         print("STATUS:", response.status_code)
         print("TEXT:", response.text)
         
-        data = response.json()
-        return data["choices"][0]["message"]["content"].strip()
+        if response.status_code != 200:
+            print(f"[LLM] HTTP Error: {response.status_code}")
+            return "I apologize, but I'm having trouble connecting right now. Let's continue with the next question."
+        
+        try:
+            data = response.json()
+            if not data.get("choices"):
+                print("[LLM] No choices in response")
+                return "I apologize, but I'm having trouble generating a response right now. Let's continue."
+            
+            content = data["choices"][0]["message"]["content"].strip()
+            print(f"[LLM] Generated content length: {len(content)}")
+            return content
+            
+        except Exception as json_error:
+            print(f"[LLM] JSON parsing error: {json_error}")
+            return "I apologize, but I'm having trouble processing the response right now."
 
     except Exception as e:
         print("LLM ERROR:", str(e))
@@ -48,23 +67,25 @@ def generate_interviewer_text(role, current_step, previous_answer=None, resume_s
         f"You are conducting a professional interview for the position of **{role}**.\n"
         f"Current section: **{current_step}**.\n"
         "Your tone should be conversational, confident, and polite.\n"
-        "Avoid personal or casual questions — focus only on professional or technical aspects."
+        "Avoid personal or casual questions — focus only on professional or technical aspects.\n"
+        "IMPORTANT: Do NOT add any prefixes like 'Interviewer:', 'Jake:', or any role labels to your responses. "
+        "Respond directly with the interview questions or statements only."
     )
 
-    # 🎤 1. Greeting / Introduction
+    # 1. Greeting / Introduction
     if current_step.lower() in ["greeting", "introduction"] and not previous_answer:
         prompt = f"""
 {role_context}
 
 Start the interview by greeting the candidate warmly.
-Introduce yourself briefly as the interviewer.
-Then ask the first question to start the {current_step} section — something like “Can you tell me about yourself?”,
+Then ask the first question to start the {current_step} section — something like "Can you tell me about yourself?",
 but word it naturally and professionally.
 Avoid being robotic or too formal.
+Do NOT introduce yourself with a name or add any prefixes to your response.
 """
         return ask_llm(prompt)
 
-    # 🚪 2. Exit / Wrap-up Section
+    # 2. Exit / Wrap-up Section
     if current_step.lower() in ["wrap-up", "exit", "thankyou", "conclusion"]:
         prompt = f"""
 {role_context}

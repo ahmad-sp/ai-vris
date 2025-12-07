@@ -133,6 +133,9 @@ public class CandidateInfoForm : MonoBehaviour
             roleVal = roleInput.text.Trim();
         }
 
+        Debug.Log($"[Submit] nameVal: '{nameVal}', roleVal: '{roleVal}'");
+        Debug.Log($"[Submit] selectedResumePath: '{selectedResumePath}'");
+
         if (string.IsNullOrEmpty(nameVal) || string.IsNullOrEmpty(roleVal))
         {
             SetValidationMessage("Please enter both name and role.");
@@ -149,10 +152,12 @@ public class CandidateInfoForm : MonoBehaviour
         // If resume is selected, upload and process it FIRST before creating session
         if (!string.IsNullOrEmpty(selectedResumePath))
         {
+            Debug.Log("[Submit] Resume detected, using UploadResumeFirstThenStartSession");
             StartCoroutine(UploadResumeFirstThenStartSession(nameVal, roleVal));
         }
         else
         {
+            Debug.Log("[Submit] No resume, using SubmitAndStartSession");
             // No resume, proceed directly to session creation
             StartCoroutine(SubmitAndStartSession(nameVal, roleVal));
         }
@@ -502,14 +507,20 @@ public class CandidateInfoForm : MonoBehaviour
 
     private System.Collections.IEnumerator UploadResumeWithProcessing(int sessionId, string role)
     {
+        Debug.Log($"[ResumeUpload] Starting upload process");
+        Debug.Log($"[ResumeUpload] selectedResumePath: '{selectedResumePath}'");
+        Debug.Log($"[ResumeUpload] File exists: {System.IO.File.Exists(selectedResumePath)}");
+        
         if (string.IsNullOrEmpty(selectedResumePath) || !System.IO.File.Exists(selectedResumePath))
         {
-            Debug.LogWarning("Resume file not found or not selected. Skipping upload.");
+            Debug.LogError("Resume file not found or not selected. Skipping upload.");
             yield break;
         }
 
         string url = backendBaseUrl.TrimEnd('/') + resumeUploadPath;
         Debug.Log($"[ResumeUpload] Uploading resume to: {url} for session {sessionId}");
+        Debug.Log($"[ResumeUpload] backendBaseUrl: '{backendBaseUrl}'");
+        Debug.Log($"[ResumeUpload] resumeUploadPath: '{resumeUploadPath}'");
 
         // Update UI: Uploading
         if (processingMessage != null)
@@ -528,10 +539,26 @@ public class CandidateInfoForm : MonoBehaviour
         form.AddField("role", role);
         form.AddBinaryData("resume", fileData, fileName, "application/pdf");
 
+        Debug.Log($"[ResumeUpload] Form data prepared:");
+        Debug.Log($"[ResumeUpload] - session_id: {sessionId}");
+        Debug.Log($"[ResumeUpload] - role: {role}");
+        Debug.Log($"[ResumeUpload] - fileName: {fileName}");
+        Debug.Log($"[ResumeUpload] - fileSize: {fileData.Length} bytes");
+
         using (UnityWebRequest www = UnityWebRequest.Post(url, form))
         {
             www.timeout = 60; // 60 second timeout for file upload
+            Debug.Log($"[ResumeUpload] Sending request to: {www.url}");
+            Debug.Log($"[ResumeUpload] Request method: {www.method}");
+            Debug.Log($"[ResumeUpload] Request headers: {www.GetRequestHeader("Content-Type")}");
+            
             yield return www.SendWebRequest();
+
+            Debug.Log($"[ResumeUpload] Request completed");
+            Debug.Log($"[ResumeUpload] Result: {www.result}");
+            Debug.Log($"[ResumeUpload] Error: {www.error}");
+            Debug.Log($"[ResumeUpload] Response code: {www.responseCode}");
+            Debug.Log($"[ResumeUpload] Response text: {www.downloadHandler?.text}");
 
             if (www.result != UnityWebRequest.Result.Success)
             {

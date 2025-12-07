@@ -17,7 +17,7 @@ def score_answer(question, answer):
     You are a professional interview evaluator. Rate each answer based on:
 
     1) Relevance — does the answer address the question directly? (Relevant / Irrelevant)
-    2) Score — integer 0-10 (10 = outstanding, 5 = average, 0 = no answer or off-topic).
+    2) Score — integer 0-10 (10 = outstanding, 5 = average, 0 = no answer or off-topic ,score in a scale of 0 to 10).
 
     ONLY RETURN JSON:
     {
@@ -27,7 +27,7 @@ def score_answer(question, answer):
     """
 
     payload = {
-        "model": "x-ai/grok-4.1-fast:free",
+        "model": "google/gemma-3-27b-it:free",
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"Question: {question}\nAnswer: {answer}"}

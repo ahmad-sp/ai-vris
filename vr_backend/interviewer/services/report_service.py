@@ -83,7 +83,7 @@ def generate_report(session):
     """
 
     payload = {
-        "model": "x-ai/grok-4.1-fast:free",
+        "model": "google/gemma-3-27b-it:free",
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": transcript}

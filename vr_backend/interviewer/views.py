@@ -300,9 +300,20 @@ class ResumeUploadView(APIView):
     """Handle resume upload and parsing."""
     
     def post(self, request):
+        print(f"[ResumeUpload] Request method: {request.method}")
+        print(f"[ResumeUpload] Request data: {request.data}")
+        print(f"[ResumeUpload] Request FILES: {request.FILES}")
+        
         session_id = request.data.get("session_id")
         role = request.data.get("role")
         pdf_file = request.FILES.get("resume")
+        
+        print(f"[ResumeUpload] session_id: {session_id}")
+        print(f"[ResumeUpload] role: {role}")
+        print(f"[ResumeUpload] pdf_file exists: {pdf_file is not None}")
+        if pdf_file:
+            print(f"[ResumeUpload] pdf_file name: {pdf_file.name}")
+            print(f"[ResumeUpload] pdf_file size: {pdf_file.size}")
         
         if not session_id or not role or not pdf_file:
             return Response({
@@ -311,11 +322,15 @@ class ResumeUploadView(APIView):
         
         try:
             session = InterviewSession.objects.get(id=session_id)
+            print(f"[ResumeUpload] Found session: {session.id}")
             
             # Process the resume
+            print(f"[ResumeUpload] Starting resume processing...")
             result = process_resume_upload(pdf_file, role)
+            print(f"[ResumeUpload] Processing result: {result}")
             
             if "error" in result:
+                print(f"[ResumeUpload] Processing error: {result['error']}")
                 return Response({"error": result["error"]}, status=status.HTTP_400_BAD_REQUEST)
             
             # Save resume data
@@ -338,9 +353,10 @@ class ResumeUploadView(APIView):
             }, status=status.HTTP_201_CREATED)
             
         except InterviewSession.DoesNotExist:
+            print(f"[ResumeUpload] Session not found: {session_id}")
             return Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            print(f"Resume upload error: {str(e)}")
+            print(f"[ResumeUpload] Unexpected error: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

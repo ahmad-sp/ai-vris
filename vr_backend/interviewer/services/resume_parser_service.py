@@ -24,7 +24,7 @@ def extract_text_from_pdf(pdf_file):
 def parse_resume_with_gemini(resume_text, role):
     """Use Gemini to extract and summarize resume details based on role."""
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        model = genai.GenerativeModel('models/gemini-2.5-flash')
         
         prompt = f"""
         You are an expert resume analyzer. Analyze the following resume and extract key information 
