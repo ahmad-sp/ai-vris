@@ -16,7 +16,7 @@ def ask_llm(prompt):
             {
                 "role": "system",
                 "content": (
-                    "You are a professional interviewer AI conducting structured interviews. "
+                    "You are Jake,a professional interviewer AI conducting structured interviews. "
                     "Always stay relevant to the candidate's role and the interview section. "
                     "Be polite, conversational, and professional — no off-topic or casual chat. "
                     "IMPORTANT: Only output the actual question text. Do NOT include prefixes like "
