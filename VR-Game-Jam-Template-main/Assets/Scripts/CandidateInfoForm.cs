@@ -58,7 +58,8 @@ public class CandidateInfoForm : MonoBehaviour
 
     [Header("Flow")]
     [Tooltip("When enabled, loads the next scene automatically after successful submit using SceneTransitionManager.")]
-    public bool autoStartNextScene = false;
+    public bool autoStartNextScene = true;
+    public string nextSceneName = "InterviewRoom";
     public int nextSceneBuildIndex = 1;
 
     [Header("Prefs Keys")]
@@ -72,6 +73,12 @@ public class CandidateInfoForm : MonoBehaviour
 
     private void Awake()
     {
+        // FORCE AUTO START to be true to ensure the flow continues,
+        // overriding any disabled checkbox in the Inspector.
+        autoStartNextScene = true;
+        
+        if (string.IsNullOrEmpty(nextSceneName)) nextSceneName = "InterviewRoom";
+
         if (submitButton != null)
             submitButton.onClick.AddListener(OnSubmitClicked);
 
@@ -444,7 +451,10 @@ public class CandidateInfoForm : MonoBehaviour
             }
             else
             {
-                UnityEngine.SceneManagement.SceneManager.LoadScene(nextSceneBuildIndex);
+                if (!string.IsNullOrEmpty(nextSceneName))
+                    UnityEngine.SceneManagement.SceneManager.LoadScene(nextSceneName);
+                else
+                    UnityEngine.SceneManagement.SceneManager.LoadScene(nextSceneBuildIndex);
             }
         }
     }
@@ -670,7 +680,10 @@ public class CandidateInfoForm : MonoBehaviour
             }
             else
             {
-                UnityEngine.SceneManagement.SceneManager.LoadScene(nextSceneBuildIndex);
+                if (!string.IsNullOrEmpty(nextSceneName))
+                    UnityEngine.SceneManagement.SceneManager.LoadScene(nextSceneName);
+                else
+                    UnityEngine.SceneManagement.SceneManager.LoadScene(nextSceneBuildIndex);
             }
         }
         

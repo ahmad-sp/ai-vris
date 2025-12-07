@@ -124,13 +124,16 @@ class InterviewStep(APIView):
             # Refresh session to ensure we have latest data (especially resume)
             session.refresh_from_db()
             resume_summary = None
-            if current_step == "Resume Questions":
-                try:
-                    resume = ResumeUpload.objects.get(session=session)
-                    resume_summary = resume.summary
+            
+            # Try to fetch resume for ALL steps so the LLM has context
+            try:
+                resume = ResumeUpload.objects.get(session=session)
+                resume_summary = resume.summary
+                if current_step == "Resume Questions":
                     print(f"[Interview] Resume Questions step - Found resume with summary length: {len(resume_summary) if resume_summary else 0}")
-                except ResumeUpload.DoesNotExist:
-                    resume_summary = None
+            except ResumeUpload.DoesNotExist:
+                resume_summary = None
+                if current_step == "Resume Questions":
                     print(f"[Interview] ⚠️ Resume Questions step but no resume found for session {session.id}")
             
             print(f"[Interview] Generating question for step '{current_step}', has_resume_summary={resume_summary is not None}")

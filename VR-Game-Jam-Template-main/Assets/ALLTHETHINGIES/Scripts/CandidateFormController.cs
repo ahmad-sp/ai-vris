@@ -31,6 +31,18 @@ public class CandidateFormController : MonoBehaviour
 
     void Start()
     {
+        // CONFLICT PREVENTION:
+        // If the more advanced "CandidateInfoForm" is present in the scene, 
+        // this simple controller should stand down to prevent double-submissions.
+        if (FindObjectOfType<CandidateInfoForm>() != null)
+        {
+            Debug.LogWarning("[CandidateFormController] CandidateInfoForm detected in scene. Disabling CandidateFormController logic to prevent duplicate sessions.");
+            // We do not hook up listeners.
+            // We also disable this component to indicate it's inactive.
+            this.enabled = false;
+            return;
+        }
+
         if (candidateFormPanel != null) candidateFormPanel.SetActive(false);
 
         // safety hookup
@@ -75,6 +87,14 @@ public class CandidateFormController : MonoBehaviour
     // Called by Submit button
     public void OnSubmit()
     {
+        // EXTRA SAFETY: 
+        // If this method is called via Inspector Event (ignoring the RemoveAllListeners above),
+        // we must still abort if CandidateInfoForm exists.
+        if (FindObjectOfType<CandidateInfoForm>() != null)
+        {
+            Debug.LogWarning("[CandidateFormController] Aborting OnSubmit because CandidateInfoForm controls the interview.");
+            return;
+        }
         string name = nameInput != null ? nameInput.text.Trim() : "";
         string role = roleInput != null ? roleInput.text.Trim() : "";
 
