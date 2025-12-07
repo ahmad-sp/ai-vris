@@ -42,6 +42,7 @@ def parse_resume_with_gemini(resume_text, role):
         
         Format the response as a concise summary that will help generate relevant interview questions.
         Focus on information most relevant to the {role} position.
+        Keep the summary under 500 words.
         """
         
         response = model.generate_content(prompt)
@@ -55,15 +56,25 @@ def parse_resume_with_gemini(resume_text, role):
 def process_resume_upload(pdf_file, role):
     """Complete pipeline: PDF -> Text extraction -> Gemini parsing -> Summary."""
     try:
+        print(f"[ResumeParser] Starting resume processing for role: {role}")
+        
         # Step 1: Extract text from PDF
+        print("[ResumeParser] Step 1: Extracting text from PDF...")
         resume_text = extract_text_from_pdf(pdf_file)
         if not resume_text:
+            print("[ResumeParser] ERROR: Failed to extract text from PDF")
             return {"error": "Failed to extract text from PDF"}
         
+        print(f"[ResumeParser] Successfully extracted {len(resume_text)} characters from PDF")
+        
         # Step 2: Parse and summarize with Gemini
+        print("[ResumeParser] Step 2: Parsing with Gemini...")
         resume_summary = parse_resume_with_gemini(resume_text, role)
         if not resume_summary:
+            print("[ResumeParser] ERROR: Failed to parse resume with Gemini")
             return {"error": "Failed to parse resume with Gemini"}
+        
+        print(f"[ResumeParser] Successfully generated summary with {len(resume_summary)} characters")
         
         return {
             "success": True,
@@ -73,5 +84,5 @@ def process_resume_upload(pdf_file, role):
         }
         
     except Exception as e:
-        print(f"Resume processing error: {str(e)}")
+        print(f"[ResumeParser] ERROR: Resume processing error: {str(e)}")
         return {"error": f"Resume processing failed: {str(e)}"}

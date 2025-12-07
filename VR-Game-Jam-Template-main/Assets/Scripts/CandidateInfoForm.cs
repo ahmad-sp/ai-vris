@@ -625,6 +625,11 @@ public class CandidateInfoForm : MonoBehaviour
     {
         UpdateMetaUI(resp);
 
+        // IMPORTANT: Store the session_id so future requests use the same session
+        PlayerPrefs.SetInt("session_id", resp.session_id);
+        PlayerPrefs.Save();
+        Debug.Log($"[CandidateInfoForm] Session {resp.session_id} stored for continued use");
+
         // Show the question image only after a successful submit/session start
         if (questionImage != null)
             questionImage.gameObject.SetActive(true);

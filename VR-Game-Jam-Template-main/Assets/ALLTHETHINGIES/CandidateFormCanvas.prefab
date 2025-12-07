@@ -928,7 +928,7 @@ MonoBehaviour:
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
   m_DynamicPixelsPerUnit: 1
-  m_PresetInfoIsWorld: 0
+  m_PresetInfoIsWorld: 1
 --- !u!114 &4755875670746056281
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3463,6 +3463,12 @@ MonoBehaviour:
   useDropdownForRole: 0
   roleDropdown: {fileID: 0}
   roleInput: {fileID: 8835608706574094405}
+  resumeSelectButton: {fileID: 0}
+  resumeFileNameText: {fileID: 0}
+  resumePathInput: {fileID: 0}
+  processingPanel: {fileID: 0}
+  processingMessage: {fileID: 0}
+  processingProgressBar: {fileID: 0}
   submitButton: {fileID: 1356112779409430919}
   validationMessage: {fileID: 652043664991474141}
   questionText: {fileID: 1114601387268781164}
@@ -3496,6 +3502,7 @@ MonoBehaviour:
   candidateRoleKey: candidate_role
   backendBaseUrl: http://127.0.0.1:8000
   interviewPath: /api/interview/
+  resumeUploadPath: /api/resume-upload/
 --- !u!1 &8825778532853836829
 GameObject:
   m_ObjectHideFlags: 0

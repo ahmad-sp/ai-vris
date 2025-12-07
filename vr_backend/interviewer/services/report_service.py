@@ -1,8 +1,9 @@
-import requests
+import os
 from django.conf import settings
 from interviewer.models import InterviewReport
+from groq import Groq
 
-OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 def generate_report(session):
     """
@@ -82,47 +83,115 @@ def generate_report(session):
     Keep sentences concise and professional. If information is missing, explicitly state that it was not gathered. Use the section scores and total score to justify the strengths, areas for improvement, and recommendations.
     """
 
-    payload = {
-        "model": "google/gemma-3-27b-it:free",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": transcript}
-        ],
-        # Stay within the 1180-token credit limit reported by OpenRouter.
-        # This is a hard upper bound for the completion tokens.
-        "max_tokens": 800,
-    }
-
     try:
-        # Get API key from settings
-        headers = {
-            "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
-            "Content-Type": "application/json",
-        }
-        
+        # Get API key from environment
+        if not GROQ_API_KEY:
+            print("ERROR: Groq API key not found")
+            return "Error generating report: API key not configured."
+            
         # Only call the API if we have responses
         if session.responses.count() > 0:
-            response = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=30)
-            response.raise_for_status()
-            data = response.json()
-            if "choices" not in data or not data["choices"]:
-                raise ValueError("Invalid response format from OpenRouter API")
-            
-            report_content = data["choices"][0]["message"]["content"].strip()
-            
-            # Save the report to the database
-            InterviewReport.objects.update_or_create(
-                session=session,
-                defaults={'content': report_content}
-            )
-            
-            return report_content
+            try:
+                client = Groq(api_key=GROQ_API_KEY)
+                
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": transcript}
+                ]
+                
+                print(f"[Report] Sending request to Groq with model: llama-3.1-8b-instant")
+                
+                completion = client.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=messages,
+                    temperature=1,
+                    max_completion_tokens=800,
+                    top_p=1,
+                    stream=False,
+                    stop=None
+                )
+                
+                report_content = completion.choices[0].message.content.strip()
+                
+                print(f"[Report] Generated report length: {len(report_content)}")
+                
+                if not report_content:
+                    print("ERROR: Empty report content from API")
+                    return generate_basic_report(session, transcript)
+                
+                # Save the report to the database
+                InterviewReport.objects.update_or_create(
+                    session=session,
+                    defaults={'content': report_content}
+                )
+                
+                return report_content
+                
+            except Exception as api_error:
+                print(f"Report API Error: {str(api_error)}")
+                return generate_basic_report(session, transcript)
         else:
-            return "No interview responses available to generate a report."
+            return generate_basic_report(session, transcript)
             
-    except requests.exceptions.RequestException as e:
+    except Exception as e:
         error_msg = f"Error generating report: {str(e)}"
         print(error_msg)
-        if 'response' in locals() and hasattr(response, 'text'):
-            print(f"Response content: {response.text[:500]}")
         return "Error generating report. The interview may be too short or there might be an API issue."
+
+
+def generate_basic_report(session, transcript):
+    """Generate a basic report without AI when API fails."""
+    try:
+        # Count responses and calculate basic stats
+        responses = session.responses.all()
+        scored_responses = [r for r in responses if r.score is not None]
+        
+        # Calculate basic scores
+        if scored_responses:
+            avg_score = sum(r.score for r in scored_responses) / len(scored_responses)
+            score_summary = f"Overall Score: {avg_score:.1f}/10 across {len(scored_responses)} answers"
+        else:
+            score_summary = "No scored answers yet"
+        
+        # Create basic report
+        basic_report = f"""Candidate Summary – {session.role} (Interview {'Completed' if session.completed else 'Incomplete'})
+Candidate: {session.candidate_name}
+Role: {session.role}
+Status: {'Completed Interview' if session.completed else 'Incomplete Interview'}
+
+Summary of Responses
+Total Questions Asked: {len(responses)}
+Questions Answered: {len([r for r in responses if r.answer])}
+
+Section Scores
+{score_summary}
+
+Strengths
+- Interview completed successfully
+- Responses were collected and evaluated
+
+Areas for Improvement
+- Consider providing more detailed responses to questions
+- Ensure all questions are addressed comprehensively
+
+Preliminary Assessment
+{'Interview was completed with ' + str(len(scored_responses)) + ' scored responses.' if scored_responses else 'Interview was completed but no responses were scored.'}
+
+Recommendations / Next Steps
+- Review the detailed Q&A in the interview system
+- Consider additional technical assessments if needed
+- Schedule follow-up interview for deeper evaluation
+
+Note: This is a basic report generated automatically due to AI service limitations.
+"""
+        
+        # Save the basic report to database
+        InterviewReport.objects.update_or_create(
+            session=session,
+            defaults={'content': basic_report}
+        )
+        return basic_report
+        
+    except Exception as e:
+        print(f"Error generating basic report: {str(e)}")
+        return f"Basic report generation failed for session {session.id}. Please contact support."

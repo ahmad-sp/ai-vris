@@ -1,4 +1,5 @@
-from .llm_service import ask_llm
+from groq import Groq
+import os
 from interviewer.models import InterviewResponse, ResumeUpload
 
 # Dynamic section flow

@@ -1,59 +1,46 @@
 import os
-import requests
-from django.conf import settings
+from groq import Groq
 
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 
 def ask_llm(prompt):
-    """Send prompt safely to OpenRouter LLM and return text."""
+    """Send prompt safely to Groq LLM and return text."""
     try:
-        print(f"[LLM] API Key exists: {bool(OPENROUTER_API_KEY)}")
+        print(f"[LLM] API Key exists: {bool(GROQ_API_KEY)}")
         print(f"[LLM] Prompt length: {len(prompt)}")
         
-        payload = {
-            "model": "google/gemma-3-27b-it:free",
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a professional interviewer AI conducting structured interviews. "
-                        "Always stay relevant to the candidate's role and the interview section. "
-                        "Be polite, conversational, and professional — no off-topic or casual chat."
-                    ),
-                },
-                {"role": "user", "content": prompt},
-            ],
-        }
-
-        headers = {
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json",
-        }
-
-        print(f"[LLM] Sending request to: {OPENROUTER_URL}")
-        response = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=45)
-        print("STATUS:", response.status_code)
-        print("TEXT:", response.text)
+        client = Groq(api_key=GROQ_API_KEY)
         
-        if response.status_code != 200:
-            print(f"[LLM] HTTP Error: {response.status_code}")
-            return "I apologize, but I'm having trouble connecting right now. Let's continue with the next question."
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are a professional interviewer AI conducting structured interviews. "
+                    "Always stay relevant to the candidate's role and the interview section. "
+                    "Be polite, conversational, and professional — no off-topic or casual chat. "
+                    "IMPORTANT: Only output the actual question text. Do NOT include prefixes like "
+                    "'Interviewer:', 'Next question:', or any other labels. Just provide the clean question."
+                ),
+            },
+            {"role": "user", "content": prompt},
+        ]
         
-        try:
-            data = response.json()
-            if not data.get("choices"):
-                print("[LLM] No choices in response")
-                return "I apologize, but I'm having trouble generating a response right now. Let's continue."
-            
-            content = data["choices"][0]["message"]["content"].strip()
-            print(f"[LLM] Generated content length: {len(content)}")
-            return content
-            
-        except Exception as json_error:
-            print(f"[LLM] JSON parsing error: {json_error}")
-            return "I apologize, but I'm having trouble processing the response right now."
+        print(f"[LLM] Sending request to Groq with model: llama-3.1-8b-instant")
+        
+        completion = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=messages,
+            temperature=1,
+            max_completion_tokens=1024,
+            top_p=1,
+            stream=False,
+            stop=None
+        )
+        
+        content = completion.choices[0].message.content.strip()
+        print(f"[LLM] Generated content length: {len(content)}")
+        return content
 
     except Exception as e:
         print("LLM ERROR:", str(e))
@@ -81,7 +68,7 @@ Start the interview by greeting the candidate warmly.
 Then ask the first question to start the {current_step} section — something like "Can you tell me about yourself?",
 but word it naturally and professionally.
 Avoid being robotic or too formal.
-Do NOT introduce yourself with a name or add any prefixes to your response.
+IMPORTANT: Output only the greeting and question text, without any prefixes like 'Interviewer:' or 'Next question:'.
 """
         return ask_llm(prompt)
 
@@ -94,6 +81,7 @@ Conclude the interview politely.
 Thank the candidate for their time, say it was a pleasure speaking with them,
 and mention that feedback or results will be shared soon.
 Do NOT ask any more questions — this is the end of the session.
+IMPORTANT: Output only the closing message, without any prefixes like 'Interviewer:' or 'Next question:'.
 """
         return ask_llm(prompt)
 
@@ -115,6 +103,7 @@ Based on the candidate's resume summary above, ask specific, relevant questions 
 
 Ask questions that show you've actually reviewed their resume and are genuinely interested in their background.
 Make the questions specific to their experience, not generic.
+IMPORTANT: Output only the question text, without any prefixes like 'Interviewer:' or 'Next question:'.
 """
             return ask_llm(prompt)
         else:
@@ -124,6 +113,7 @@ Make the questions specific to their experience, not generic.
 {role_context}
 
 Ask a question about the candidate's professional background and experience relevant to the {role} position.
+IMPORTANT: Output only the question text, without any prefixes like 'Interviewer:' or 'Next question:'.
 """
             return ask_llm(prompt)
 
@@ -151,6 +141,7 @@ Your job:
 - Keep it concise and related to {role}.
 - If this is resume questions, continue asking about their experience, skills, or background based on their resume.
 - Avoid repeating or generic questions.
+- IMPORTANT: Output only the response text, without any prefixes like 'Interviewer:' or 'Next question:'.
 """
     else:
         prompt = f"""
@@ -177,6 +168,7 @@ Make the questions specific to their experience, not generic.
 
 Start the {current_step} section by asking a relevant, role-based technical or behavioral question.
 Keep it short, natural, and clear — not robotic.
+IMPORTANT: Output only the question text, without any prefixes like 'Interviewer:' or 'Next question:'.
 """
 
     return ask_llm(prompt)

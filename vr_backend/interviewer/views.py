@@ -18,9 +18,9 @@ from .services.resume_parser_service import process_resume_upload
 
 load_dotenv()
 
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 DEFAULT_SECTION_FLOW = [
     "Greeting", "Introduction", "Resume Questions",
@@ -71,6 +71,9 @@ class InterviewStep(APIView):
         candidate_name = request.data.get("candidate_name", "Anonimus")
         role = request.data.get("role")
         session_id = request.data.get("session_id")
+        
+        print(f"[InterviewStep] New request - candidate: {candidate_name}, role: {role}, session_id: {session_id}")
+        print(f"[InterviewStep] Full request data: {request.data}")
         answer = request.data.get("answer")
 
         try:
@@ -89,6 +92,7 @@ class InterviewStep(APIView):
                 session = InterviewSession.objects.create(
                     candidate_name=candidate_name, role=role, current_step="Greeting", completed=False
                 )
+                print(f"[InterviewStep] CREATED NEW SESSION {session.id} because no session_id was provided")
 
             current_step = session.current_step
             asked_questions = session.responses.filter(step=current_step).count()
