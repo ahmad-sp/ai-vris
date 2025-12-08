@@ -106,17 +106,198 @@ public class ReportDetailPanel : MonoBehaviour
         {
             reportContentText.text = FormatReportContent(currentReport.report);
             
-            // Scroll to top
+            // Scroll to top - use Invoke to avoid coroutine issues
             if (reportScrollRect != null)
             {
-                StartCoroutine(ScrollToTop());
+                // Reset scroll position immediately
+                reportScrollRect.verticalNormalizedPosition = 1f;
+                
+                // Also schedule it for next frame to ensure it works
+                Invoke(nameof(ResetScrollPosition), 0.1f);
             }
+        }
+    }
+
+    private void ResetScrollPosition()
+    {
+        if (reportScrollRect != null)
+        {
+            reportScrollRect.verticalNormalizedPosition = 1f;
         }
 
         // Enable export button only if there's content
         if (exportButton != null)
         {
             exportButton.interactable = !string.IsNullOrEmpty(currentReport.report);
+        }
+        
+        // Debug scrolling setup
+        DebugScrollSetup();
+    }
+    
+    private void DebugScrollSetup()
+    {
+        Debug.Log("=== SCROLL DEBUG INFO ===");
+        
+        if (reportScrollRect != null)
+        {
+            Debug.Log($"✅ ScrollRect exists");
+            Debug.Log($"Content assigned: {reportScrollRect.content != null}");
+            Debug.Log($"Viewport assigned: {reportScrollRect.viewport != null}");
+            Debug.Log($"Vertical enabled: {reportScrollRect.vertical}");
+            Debug.Log($"Horizontal enabled: {reportScrollRect.horizontal}");
+            
+            if (reportScrollRect.content != null)
+            {
+                float contentHeight = reportScrollRect.content.rect.height;
+                Debug.Log($"📏 Content Height: {contentHeight}");
+                
+                // Check for ContentSizeFitter
+                var csf = reportScrollRect.content.GetComponent<ContentSizeFitter>();
+                Debug.Log($"ContentSizeFitter exists: {csf != null}");
+                if (csf != null)
+                {
+                    Debug.Log($"  - Vertical Fit: {csf.verticalFit}");
+                }
+                
+                // Check for VerticalLayoutGroup
+                var vlg = reportScrollRect.content.GetComponent<VerticalLayoutGroup>();
+                Debug.Log($"VerticalLayoutGroup exists: {vlg != null}");
+                
+                // Check children count
+                Debug.Log($"Content children count: {reportScrollRect.content.childCount}");
+            }
+            
+            if (reportScrollRect.viewport != null)
+            {
+                float viewportHeight = reportScrollRect.viewport.rect.height;
+                Debug.Log($"📏 Viewport Height: {viewportHeight}");
+                
+                if (reportScrollRect.content != null)
+                {
+                    float contentHeight = reportScrollRect.content.rect.height;
+                    if (contentHeight > viewportHeight)
+                    {
+                        Debug.Log($"✅ Content ({contentHeight}) > Viewport ({viewportHeight}) - SHOULD SCROLL");
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"⚠️ Content ({contentHeight}) <= Viewport ({viewportHeight}) - WON'T SCROLL!");
+                        Debug.LogWarning("Content needs to be taller than viewport to enable scrolling.");
+                    }
+                }
+            }
+        }
+        else
+        {
+            Debug.LogError("❌ reportScrollRect is NULL! Assign it in Inspector.");
+        }
+        
+        if (reportContentText != null)
+        {
+            Debug.Log($"Report text length: {reportContentText.text.Length} characters");
+            Debug.Log($"Report text preferredHeight: {reportContentText.preferredHeight}");
+        }
+        
+        Debug.Log("=== END SCROLL DEBUG ===");
+        
+        // FORCE CONTENT HEIGHT - Nuclear option to make scrolling work
+        if (reportScrollRect != null && reportScrollRect.content != null)
+        {
+            StartCoroutine(ForceContentHeight());
+        }
+    }
+    
+    private System.Collections.IEnumerator ForceContentHeight()
+    {
+        // Wait for layout to be calculated
+        yield return new WaitForEndOfFrame();
+        
+        if (reportScrollRect != null && reportScrollRect.content != null)
+        {
+            var rt = reportScrollRect.content.GetComponent<RectTransform>();
+            
+            // Calculate total height needed
+            float totalHeight = 0;
+            
+            // Add height for all children
+            foreach (RectTransform child in reportScrollRect.content)
+            {
+                if (child.gameObject.activeSelf)
+                {
+                    // Check if this child has the report text
+                    var tmpText = child.GetComponentInChildren<TMPro.TextMeshProUGUI>();
+                    if (tmpText != null && tmpText == reportContentText)
+                    {
+                        // Use the text's preferred height
+                        totalHeight += reportContentText.preferredHeight;
+                        Debug.Log($"📝 Added text preferred height: {reportContentText.preferredHeight}");
+                    }
+                    else
+                    {
+                        // Use the child's current height
+                        totalHeight += child.rect.height;
+                        Debug.Log($"📦 Added child height: {child.rect.height}");
+                    }
+                }
+            }
+            
+            // Add padding from VerticalLayoutGroup if it exists
+            var vlg = reportScrollRect.content.GetComponent<VerticalLayoutGroup>();
+            if (vlg != null)
+            {
+                totalHeight += vlg.padding.top + vlg.padding.bottom;
+                totalHeight += vlg.spacing * (reportScrollRect.content.childCount - 1);
+                Debug.Log($"📐 Added layout padding and spacing: {vlg.padding.top + vlg.padding.bottom + (vlg.spacing * (reportScrollRect.content.childCount - 1))}");
+            }
+            
+            // Add minimal padding for safety (reduced from 100 to 50)
+            totalHeight += 50;
+            
+            Debug.Log($"⚡ FORCING Content height to {totalHeight} pixels");
+            
+            // CRITICAL: Disable ContentSizeFitter - it will override our height!
+            var csf = reportScrollRect.content.GetComponent<ContentSizeFitter>();
+            if (csf != null)
+            {
+                Debug.Log("🔧 Disabling ContentSizeFitter (it was overriding our height)");
+                csf.enabled = false;
+            }
+            
+            // CRITICAL: Disable VerticalLayoutGroup - it might also override!
+            if (vlg != null)
+            {
+                Debug.Log("🔧 Disabling VerticalLayoutGroup (it was overriding our height)");
+                vlg.enabled = false;
+            }
+            
+            // Force the content height
+            rt.sizeDelta = new Vector2(rt.sizeDelta.x, totalHeight);
+            
+            Debug.Log($"✅ Content height SET to {totalHeight} pixels");
+            
+            // Wait one more frame to let it apply
+            yield return null;
+            
+            // Verify it worked
+            float actualHeight = rt.rect.height;
+            Debug.Log($"🔍 Verification: Content height is now {actualHeight} pixels");
+            
+            if (actualHeight > 1080)
+            {
+                Debug.Log($"✅✅✅ SUCCESS! Content ({actualHeight}) > Viewport (1080) - SCROLLING SHOULD WORK!");
+            }
+            else
+            {
+                Debug.LogError($"❌ FAILED! Content ({actualHeight}) still too small. Something is overriding the height.");
+            }
+            
+            // Reset scroll to top
+            if (reportScrollRect != null)
+            {
+                reportScrollRect.verticalNormalizedPosition = 1f;
+                Debug.Log("📜 Scroll position reset to top");
+            }
         }
     }
 

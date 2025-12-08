@@ -649,7 +649,28 @@ public class InterviewSessionManager : MonoBehaviour
                 Debug.Log($"[Report] Successfully parsed report ({cleanReport.Length} characters)");
                 
                 if (reportText != null)
+                {
                     reportText.text = cleanReport;
+                    
+                    Debug.Log($"[Report] Report text set. Checking scroll rect...");
+                    Debug.Log($"[Report] reportScrollRect exists: {reportScrollRect != null}");
+                    
+                    // Force the scroll content to expand properly
+                    if (reportScrollRect != null)
+                    {
+                        Debug.Log("[Report] Starting ForceReportContentHeight coroutine");
+                        StartCoroutine(ForceReportContentHeight());
+                    }
+                    else
+                    {
+                        Debug.LogError("[Report] ❌ reportScrollRect is NULL! Assign it in Inspector!");
+                        Debug.LogError("[Report] Without ScrollRect, the report won't be scrollable.");
+                    }
+                }
+                else
+                {
+                    Debug.LogError("[Report] reportText is NULL!");
+                }
             }
             catch (System.Exception ex)
             {
@@ -662,6 +683,67 @@ public class InterviewSessionManager : MonoBehaviour
         }
 
         reportFetchRoutine = null;
+    }
+    
+    // Force the report scroll content to expand to fit the text
+    private IEnumerator ForceReportContentHeight()
+    {
+        // Wait for layout to be calculated
+        yield return new WaitForEndOfFrame();
+        
+        if (reportScrollRect != null && reportScrollRect.content != null && reportText != null)
+        {
+            Debug.Log("[Report] === FORCING SCROLL CONTENT HEIGHT ===");
+            
+            var rt = reportScrollRect.content.GetComponent<RectTransform>();
+            
+            // Get the text's preferred height
+            float textHeight = reportText.preferredHeight;
+            Debug.Log($"[Report] Text preferred height: {textHeight}");
+            
+            // Add minimal padding (reduced from 200 to 5)
+            float totalHeight = textHeight - 250;
+            
+            // Disable ContentSizeFitter if it exists (it will override our height)
+            var csf = reportScrollRect.content.GetComponent<ContentSizeFitter>();
+            if (csf != null)
+            {
+                Debug.Log("[Report] Disabling ContentSizeFitter");
+                csf.enabled = false;
+            }
+            
+            // Disable VerticalLayoutGroup if it exists
+            var vlg = reportScrollRect.content.GetComponent<VerticalLayoutGroup>();
+            if (vlg != null)
+            {
+                Debug.Log("[Report] Disabling VerticalLayoutGroup");
+                vlg.enabled = false;
+            }
+            
+            // Force the content height
+            rt.sizeDelta = new Vector2(rt.sizeDelta.x, totalHeight);
+            Debug.Log($"[Report] Forced content height to {totalHeight}");
+            
+            // Wait one more frame
+            yield return null;
+            
+            // Verify it worked
+            float actualHeight = rt.rect.height;
+            Debug.Log($"[Report] Actual content height: {actualHeight}");
+            
+            if (actualHeight > 500)
+            {
+                Debug.Log($"[Report] ✅ SUCCESS! Content is tall enough to scroll");
+            }
+            else
+            {
+                Debug.LogWarning($"[Report] ⚠️ Content might be too small: {actualHeight}");
+            }
+            
+            // Reset scroll to top
+            reportScrollRect.verticalNormalizedPosition = 1f;
+            Debug.Log("[Report] Scroll position reset to top");
+        }
     }
 
     private string AppendFormatQuery(string baseUrl, string query)

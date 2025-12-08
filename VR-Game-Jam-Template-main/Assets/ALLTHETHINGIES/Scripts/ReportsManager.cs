@@ -19,7 +19,7 @@ public class ReportsManager : MonoBehaviour
     public Button refreshButton;
 
     [Header("API Settings")]
-    private string baseUrl = "http://localhost:8000/api/";
+    private string baseUrl = "http://127.0.0.1:8000/api/";
     
     private List<ReportData> reports = new List<ReportData>();
 
@@ -120,10 +120,12 @@ public class ReportsManager : MonoBehaviour
 
     IEnumerator LoadReportDetail(int sessionId)
     {
+        Debug.Log($"[ReportsManager] Loading report detail for session {sessionId}");
         loadingText.gameObject.SetActive(true);
         errorText.gameObject.SetActive(false);
 
         string url = baseUrl + "reports/" + sessionId + "/";
+        Debug.Log($"[ReportsManager] Request URL: {url}");
         
         using (UnityWebRequest request = UnityWebRequest.Get(url))
         {
@@ -134,20 +136,33 @@ public class ReportsManager : MonoBehaviour
             if (request.result == UnityWebRequest.Result.Success)
             {
                 string jsonResponse = request.downloadHandler.text;
+                Debug.Log($"[ReportsManager] Successfully received report data: {jsonResponse.Substring(0, Mathf.Min(200, jsonResponse.Length))}...");
+                
                 ReportDetailPanel detailPanel = reportDetailPanel.GetComponent<ReportDetailPanel>();
                 
                 if (detailPanel != null)
                 {
-                    detailPanel.DisplayReport(jsonResponse);
+                    Debug.Log("[ReportsManager] Displaying report in detail panel");
+                    
+                    // IMPORTANT: Activate the panel BEFORE calling DisplayReport
+                    // This prevents coroutine errors
                     reportsListPanel.SetActive(false);
                     reportDetailPanel.SetActive(true);
+                    
+                    // Now display the report (panel is already active)
+                    detailPanel.DisplayReport(jsonResponse);
+                }
+                else
+                {
+                    Debug.LogError("[ReportsManager] ReportDetailPanel component not found!");
                 }
             }
             else
             {
+                Debug.LogError($"[ReportsManager] Error loading report detail: {request.error}");
+                Debug.LogError($"[ReportsManager] Response Code: {request.responseCode}");
                 errorText.gameObject.SetActive(true);
                 errorText.text = "Failed to load report details: " + request.error;
-                Debug.LogError("Error loading report detail: " + request.error);
             }
         }
     }

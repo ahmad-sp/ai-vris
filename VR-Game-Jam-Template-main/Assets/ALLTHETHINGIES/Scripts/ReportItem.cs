@@ -77,9 +77,20 @@ public class ReportItem : MonoBehaviour
 
     private void OnSelectClicked()
     {
+        Debug.Log($"[ReportItem] Select button clicked for session {reportData.session_id}");
+        Debug.Log($"[ReportItem] Report available: {reportData.report_available}");
+        Debug.Log($"[ReportItem] ReportsManager exists: {reportsManager != null}");
+        
         if (reportsManager != null && reportData.report_available)
         {
             reportsManager.OnReportSelected(reportData);
+        }
+        else
+        {
+            if (reportsManager == null)
+                Debug.LogError("[ReportItem] ReportsManager reference is null!");
+            if (!reportData.report_available)
+                Debug.LogWarning("[ReportItem] Report is not available for this session");
         }
     }
 

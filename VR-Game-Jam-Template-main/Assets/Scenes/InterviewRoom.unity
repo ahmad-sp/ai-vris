@@ -1340,7 +1340,7 @@ MonoBehaviour:
   questionText: {fileID: 598562889}
   metaCombinedText: {fileID: 1109584454}
   questionAudioSource: {fileID: 1900480119}
-  reportScrollRect: {fileID: 0}
+  reportScrollRect: {fileID: 1040401615}
   reportTab: {fileID: 1107200017}
   reportText: {fileID: 948494681}
   reportFormatQuery: ?format=text
@@ -2308,8 +2308,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: -0.000030517578}
-  m_SizeDelta: {x: 0, y: -483}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: -553}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &554409968
 MonoBehaviour:
@@ -3403,7 +3403,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 170, y: 275}
+  m_AnchoredPosition: {x: 400, y: 350}
   m_SizeDelta: {x: 50, y: 37}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &915386556
@@ -3606,8 +3606,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 20
-  m_fontSizeBase: 20
+  m_fontSize: 36
+  m_fontSizeBase: 36
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -4067,8 +4067,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 500, y: 500}
+  m_AnchoredPosition: {x: 0, y: 34.25}
+  m_SizeDelta: {x: 1200, y: 570}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1040401615
 MonoBehaviour:
@@ -4635,7 +4635,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 225, y: 275}
+  m_AnchoredPosition: {x: 450, y: 350}
   m_SizeDelta: {x: 50, y: 37}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1253968956
@@ -5364,6 +5364,12 @@ MonoBehaviour:
   useDropdownForRole: 0
   roleDropdown: {fileID: 0}
   roleInput: {fileID: 0}
+  resumeSelectButton: {fileID: 0}
+  resumeFileNameText: {fileID: 0}
+  resumePathInput: {fileID: 0}
+  processingPanel: {fileID: 0}
+  processingMessage: {fileID: 0}
+  processingProgressBar: {fileID: 0}
   submitButton: {fileID: 0}
   validationMessage: {fileID: 0}
   questionText: {fileID: 598562889}
@@ -5392,11 +5398,13 @@ MonoBehaviour:
         m_CallState: 2
   interviewManager: {fileID: 298445966}
   autoStartNextScene: 0
+  nextSceneName: InterviewRoom
   nextSceneBuildIndex: 1
   candidateNameKey: candidate_name
   candidateRoleKey: candidate_role
   backendBaseUrl: http://127.0.0.1:8000
   interviewPath: /api/interview/
+  resumeUploadPath: /api/resume-upload/
 --- !u!114 &1540353152
 MonoBehaviour:
   m_ObjectHideFlags: 0
