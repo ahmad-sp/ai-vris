@@ -32,8 +32,21 @@ public class InterviewSessionManager : MonoBehaviour
     public string backendBaseUrl = "http://127.0.0.1:8000";
     public string interviewPath = "/api/interview/";
 
+    [Header("Question Timeout Settings")]
+    [Tooltip("Time in seconds to wait for voice input before repeating the question")]
+    public float questionTimeoutSeconds = 30f;
+    [Tooltip("Time in seconds to wait after repeating before skipping the question")]
+    public float repeatTimeoutSeconds = 30f;
+    [Tooltip("Enable/disable the timeout and repeat functionality")]
+    public bool enableQuestionTimeout = true;
+
     private Coroutine reportFetchRoutine;
     private bool initialPromptHandled = false; // Flag to prevent Start() from overriding initial prompt
+    private Coroutine questionTimeoutCoroutine; // Track the active timeout coroutine
+    private bool hasReceivedAnswer = false; // Track if answer was received for current question
+    private string currentQuestion = ""; // Store current question for repeat
+    private string currentAudioUrl = ""; // Store current audio URL for repeat
+    private bool isQuestionRepeated = false; // Track if question has been repeated
 
     private void Awake()
     {
@@ -106,6 +119,10 @@ public class InterviewSessionManager : MonoBehaviour
     {
         Debug.Log($"[InterviewSessionManager] HandleInitialPrompt - Setting question text and playing audio");
         
+        // Store current question and audio for potential repeat
+        currentQuestion = question;
+        currentAudioUrl = audioUrl;
+        
         if (questionText != null && !string.IsNullOrEmpty(question))
         {
             questionText.text = question;
@@ -133,6 +150,9 @@ public class InterviewSessionManager : MonoBehaviour
         {
             Debug.Log("[InterviewSessionManager] Starting VAD listening");
             vad.StartListening();
+            
+            // Start the timeout monitor after VAD starts listening
+            StartQuestionTimeout();
         }
         else
         {
@@ -144,12 +164,20 @@ public class InterviewSessionManager : MonoBehaviour
     {
         if (vad != null && vad.onTranscript != null)
             vad.onTranscript.RemoveListener(OnTranscriptReady);
+        
+        // Clean up timeout coroutine
+        CancelQuestionTimeout();
     }
 
     // Called by VAD when user stops speaking and STT returns a transcript
     private void OnTranscriptReady(string transcript)
     {
         if (string.IsNullOrWhiteSpace(transcript)) return;
+        
+        // Mark that we received an answer and cancel timeout
+        hasReceivedAnswer = true;
+        CancelQuestionTimeout();
+        
         // Avoid capturing TTS: ensure VAD is not listening while we fetch and play next prompt
         if (vad != null)
             vad.StopListening();
@@ -204,6 +232,11 @@ public class InterviewSessionManager : MonoBehaviour
         if (response != null && !string.IsNullOrEmpty(response.question))
         {
             Debug.Log($"[InterviewSessionManager] Setting question from server: {response.question.Substring(0, Mathf.Min(50, response.question.Length))}...");
+            
+            // Store current question and audio for potential repeat
+            currentQuestion = response.question;
+            currentAudioUrl = response.audio_url;
+            
             if (questionText != null) questionText.text = response.question;
             if (onQuestionReceived != null) onQuestionReceived.Invoke(response.question);
 
@@ -213,6 +246,9 @@ public class InterviewSessionManager : MonoBehaviour
             }
             
             StartInterviewListening();
+            
+            // Start timeout monitor after listening begins
+            StartQuestionTimeout();
         }
         else
         {
@@ -354,6 +390,10 @@ public class InterviewSessionManager : MonoBehaviour
             metaCombinedText.text = $" section:{stepVal}\n remaining question:{resp.remaining_questions} \n remaining section:{resp.remaining_sections}";
         }
 
+        // Store current question and audio for potential repeat
+        currentQuestion = resp.question;
+        currentAudioUrl = resp.audio_url;
+
         // Display and phonemes
         if (questionText != null && !string.IsNullOrEmpty(resp.question))
             questionText.text = resp.question;
@@ -375,8 +415,143 @@ public class InterviewSessionManager : MonoBehaviour
         }
 
         if (vad != null)
+        {
             vad.StartListening();
+            
+            // Start timeout monitor for the new question
+            StartQuestionTimeout();
+        }
     }
+
+    /// <summary>
+    /// Coroutine that monitors for voice input timeout. If no answer is received:
+    /// 1. First timeout: Repeat the question and audio
+    /// 2. Second timeout: Skip the question with empty answer (0 marks)
+    /// </summary>
+    private IEnumerator QuestionTimeoutMonitor()
+    {
+        Debug.Log($"[Timeout] Starting timeout monitor. Initial timeout: {questionTimeoutSeconds}s");
+        
+        // Reset answer tracking
+        hasReceivedAnswer = false;
+        isQuestionRepeated = false;
+        
+        // Wait for the initial timeout period
+        float elapsed = 0f;
+        while (elapsed < questionTimeoutSeconds && !hasReceivedAnswer)
+        {
+            yield return new WaitForSeconds(1f);
+            elapsed += 1f;
+            
+            // Optional: Log countdown every 10 seconds
+            if (elapsed % 10 == 0)
+            {
+                Debug.Log($"[Timeout] Waiting for answer... {questionTimeoutSeconds - elapsed}s remaining");
+            }
+        }
+        
+        // If answer was received, exit
+        if (hasReceivedAnswer)
+        {
+            Debug.Log("[Timeout] Answer received, canceling timeout");
+            yield break;
+        }
+        
+        // First timeout reached - repeat the question
+        Debug.LogWarning($"[Timeout] No answer received after {questionTimeoutSeconds}s. Repeating question...");
+        isQuestionRepeated = true;
+        
+        // Stop VAD temporarily to avoid capturing the repeated audio
+        if (vad != null)
+            vad.StopListening();
+        
+        // Display the question again
+        if (questionText != null && !string.IsNullOrEmpty(currentQuestion))
+        {
+            questionText.text = "[REPEATED] " + currentQuestion;
+        }
+        
+        // Invoke phoneme animation again
+        if (onQuestionReceived != null && !string.IsNullOrEmpty(currentQuestion))
+            onQuestionReceived.Invoke(currentQuestion);
+        
+        // Play the audio again
+        if (!string.IsNullOrEmpty(currentAudioUrl) && questionAudioSource != null)
+        {
+            yield return StartCoroutine(DownloadAndPlay(currentAudioUrl));
+        }
+        
+        // Restart VAD listening
+        if (vad != null)
+            vad.StartListening();
+        
+        // Wait for the repeat timeout period
+        elapsed = 0f;
+        while (elapsed < repeatTimeoutSeconds && !hasReceivedAnswer)
+        {
+            yield return new WaitForSeconds(1f);
+            elapsed += 1f;
+            
+            if (elapsed % 10 == 0)
+            {
+                Debug.Log($"[Timeout] Waiting for answer (after repeat)... {repeatTimeoutSeconds - elapsed}s remaining");
+            }
+        }
+        
+        // If answer was received after repeat, exit
+        if (hasReceivedAnswer)
+        {
+            Debug.Log("[Timeout] Answer received after repeat, canceling timeout");
+            yield break;
+        }
+        
+        // Second timeout reached - skip the question
+        Debug.LogWarning($"[Timeout] No answer received after repeat. Skipping question with 0 marks...");
+        
+        // Stop VAD
+        if (vad != null)
+            vad.StopListening();
+        
+        // Submit empty answer to skip the question
+        if (questionText != null)
+            questionText.text = "Question skipped due to no response. Moving to next question...";
+        
+        // Post empty answer to backend (which should award 0 marks)
+        yield return StartCoroutine(PostAnswerAndHandleNext(""));
+    }
+
+    /// <summary>
+    /// Starts the question timeout monitor if enabled
+    /// </summary>
+    private void StartQuestionTimeout()
+    {
+        // Cancel any existing timeout
+        if (questionTimeoutCoroutine != null)
+        {
+            StopCoroutine(questionTimeoutCoroutine);
+            questionTimeoutCoroutine = null;
+        }
+        
+        // Start new timeout if enabled
+        if (enableQuestionTimeout)
+        {
+            questionTimeoutCoroutine = StartCoroutine(QuestionTimeoutMonitor());
+        }
+    }
+
+    /// <summary>
+    /// Cancels the active question timeout
+    /// </summary>
+    private void CancelQuestionTimeout()
+    {
+        if (questionTimeoutCoroutine != null)
+        {
+            Debug.Log("[Timeout] Canceling active timeout");
+            StopCoroutine(questionTimeoutCoroutine);
+            questionTimeoutCoroutine = null;
+        }
+    }
+
 
     private IEnumerator DownloadAndPlay(string url)
     {
