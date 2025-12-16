@@ -9,6 +9,7 @@ public class InterviewSessionManager : MonoBehaviour
 {
     [Header("References")]
     public VADVoiceRecorder vad; // VAD recorder that raises onTranscript
+    public PhenomesOutput phenomesOutput; // Lip sync controller
 
     [Header("UI References")]
     public TMP_Text questionText;
@@ -682,6 +683,13 @@ public class InterviewSessionManager : MonoBehaviour
                 var clip = DownloadHandlerAudioClip.GetContent(req);
                 questionAudioSource.clip = clip;
                 questionAudioSource.Play();
+                
+                // Trigger lip sync
+                if (phenomesOutput != null && !string.IsNullOrEmpty(currentQuestion))
+                {
+                    phenomesOutput.PlaySentence(currentQuestion);
+                }
+                
                 while (questionAudioSource.isPlaying)
                     yield return null;
             }
