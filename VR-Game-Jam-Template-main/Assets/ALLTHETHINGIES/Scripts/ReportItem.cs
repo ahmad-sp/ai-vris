@@ -15,8 +15,8 @@ public class ReportItem : MonoBehaviour
     public Image backgroundImage;
     
     [Header("Colors")]
-    public Color completedColor = Color.green;
-    public Color incompleteColor = Color.yellow;
+    public Color completedColor = new Color(0.2f, 0.8f, 0.2f); // Green
+    public Color incompleteColor = new Color(1f, 0.4f, 0.2f);  // Orange-Red
 
     private ReportsManager.ReportData reportData;
     private ReportsManager reportsManager;
@@ -56,7 +56,8 @@ public class ReportItem : MonoBehaviour
 
         if (statusText != null)
         {
-            statusText.text = data.completed ? "Completed" : "In Progress";
+            // Show "Completed" or "Incomplete" with appropriate colors
+            statusText.text = data.completed ? "✓ Completed" : "⚠ Incomplete";
             statusText.color = data.completed ? completedColor : incompleteColor;
         }
 

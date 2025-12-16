@@ -379,11 +379,15 @@ class ReportsList(APIView):
             for session in completed_sessions:
                 # Check if report exists or can be generated
                 if InterviewReport.objects.filter(session=session).exists() or session.responses.exists():
+                    # Check if truly completed (reached end steps)
+                    # Use exact same logic as report service for consistency
+                    is_truly_completed = session.completed and session.current_step in ['Exit', 'Wrap-Up', 'Conclusion']
+                    
                     sessions_with_reports.append({
                         "session_id": session.id,
                         "candidate_name": session.candidate_name or "Unknown",
                         "role": session.role or "Unknown",
-                        "completed": session.completed,
+                        "completed": is_truly_completed,
                         "created_at": session.created_at.isoformat(),
                         "report_available": True
                     })
@@ -396,7 +400,7 @@ class ReportsList(APIView):
                         "session_id": session.id,
                         "candidate_name": session.candidate_name or "Unknown",
                         "role": session.role or "Unknown",
-                        "completed": session.completed,
+                        "completed": False,  # Always false for incomplete sessions
                         "created_at": session.created_at.isoformat(),
                         "report_available": True
                     })
@@ -424,11 +428,14 @@ class ReportDetail(APIView):
             responses_count = session.responses.count()
             scored_responses = session.responses.exclude(score__isnull=True).count()
             
+            # Check if truly completed (reached end steps)
+            is_truly_completed = session.completed and session.current_step in ['Exit', 'Wrap-Up', 'Conclusion']
+            
             return Response({
                 "session_id": session.id,
                 "candidate_name": session.candidate_name or "Unknown",
                 "role": session.role or "Unknown",
-                "completed": session.completed,
+                "completed": is_truly_completed,
                 "created_at": session.created_at.isoformat(),
                 "responses_count": responses_count,
                 "scored_responses": scored_responses,

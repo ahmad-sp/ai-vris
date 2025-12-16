@@ -19,8 +19,12 @@ def generate_report(session):
     except Exception as e:
         print(f"Error checking for existing report: {str(e)}")
 
+    # Determine true completion status (must have reached end steps)
+    is_truly_completed = session.completed and session.current_step in ['Exit', 'Wrap-Up', 'Conclusion']
+    status_str = "Completed Interview" if is_truly_completed else "Incomplete Interview"
+
     # Build transcript from DB
-    transcript = f"Candidate: {session.candidate_name}\nRole: {session.role}\n\n"
+    transcript = f"Candidate: {session.candidate_name}\nRole: {session.role}\nStatus: {status_str}\n\n"
     section_scores = {}
     total_scores = []
     for resp in session.responses.all():
@@ -153,11 +157,15 @@ def generate_basic_report(session, transcript):
         else:
             score_summary = "No scored answers yet"
         
+        # Determine true completion status (must have reached end steps)
+        # Interrupting an interview sets completed=True but step remains intermediate
+        is_truly_completed = session.completed and session.current_step in ['Exit', 'Wrap-Up', 'Conclusion']
+
         # Create basic report
-        basic_report = f"""Candidate Summary – {session.role} (Interview {'Completed' if session.completed else 'Incomplete'})
+        basic_report = f"""Candidate Summary – {session.role} (Interview {'Completed' if is_truly_completed else 'Incomplete'})
 Candidate: {session.candidate_name}
 Role: {session.role}
-Status: {'Completed Interview' if session.completed else 'Incomplete Interview'}
+Status: {'Completed Interview' if is_truly_completed else 'Incomplete Interview'}
 
 Summary of Responses
 Total Questions Asked: {len(responses)}
