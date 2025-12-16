@@ -10,43 +10,52 @@ def score_answer(question, answer):
     Returns a tuple: (score:int, relevance:str)
     """
     # Quick pre-check for obviously bad answers ONLY
-    if not answer or len(answer.strip()) < 3:
+    if not answer or len(answer.strip()) < 2:
         return 0, "Irrelevant"
     
     # Check for filler-only answers (very strict check)
     filler_words = ["um", "uh", "hmm"]  # Only check for pure filler, not legitimate answers
     cleaned_answer = answer.strip().lower().replace(",", "").replace(".", "")
     if cleaned_answer in filler_words and len(cleaned_answer.split()) == 1:
-        return 0, "Irrelevant"
+        return 1, "Partially Relevant"  # More generous - give 1 point for attempting
     
     print(f"[Scoring] Scoring answer: '{answer[:50]}...' to question: '{question[:50]}...'")
 
     system_prompt = """
-    You are a professional interview evaluator. Rate each answer based on:
-    1) Relevance — does the answer address the question directly? (Relevant / Irrelevant)
+    You are a GENEROUS and SUPPORTIVE interview evaluator. Your role is to encourage candidates and recognize their efforts.
+    
+    Rate each answer based on:
+    1) Relevance — does the answer attempt to address the question? (Relevant / Partially Relevant / Irrelevant)
     2) Score — integer 0-10:
-       - 0: No answer, just filler words (um, uh, etc.), or completely off-topic
-       - 1-2: Very poor answer, minimal substance, barely addresses question
-       - 3-4: Poor answer, some substance but lacks depth or clarity
-       - 5-6: Average answer, addresses question but could be better
-       - 7-8: Good answer, clear and relevant with decent substance
-       - 9-10: Excellent answer, comprehensive, insightful, and well-articulated
+       - 0-1: Only for completely blank, nonsensical, or pure filler responses
+       - 2-3: Very brief but attempts to answer (e.g., "I don't know much about that")
+       - 4-5: Short answer that partially addresses the question
+       - 6-7: Decent answer that addresses the question adequately
+       - 8-9: Good answer with some detail, examples, or clarity
+       - 10: Exceptional, comprehensive, and insightful answer
 
-    SCORING GUIDELINES:
-    - If the answer directly addresses the question asked, mark it "Relevant"
-    - If the answer provides specific examples, projects, or experience, score 7-8
-    - If the answer shows education and internship experience, score 7-8
-    - Only mark "Irrelevant" if the answer is completely off-topic or is just filler words
-    - Only give 0-2 for answers that are truly minimal, off-topic, or just filler
-    - Give 5-6 for basic answers that address the question
-    - Give 7-8 for good answers with specific details and examples
-    - Give 9-10 for exceptional, comprehensive answers
-
-    IMPORTANT: Be generous with scoring for relevant, detailed answers.
+    LIBERAL SCORING GUIDELINES (BE GENEROUS):
+    - If the answer makes ANY attempt to address the question, mark it "Relevant" or "Partially Relevant"
+    - Even brief answers (1-2 sentences) should get at least 4-5 if they're on topic
+    - Answers with any specific details, examples, or personal experience should get 6-8
+    - Education, internships, projects, or work experience mentioned = automatic 7-8 minimum
+    - Only mark "Irrelevant" if the answer is COMPLETELY off-topic or just filler words
+    - Give the benefit of the doubt - if unsure, score higher
+    - Partial answers are better than no answers - reward attempts (minimum 3-4)
+    - Any answer showing thought or effort deserves at least 5-6
+    - Reserve 0-2 ONLY for truly empty, nonsensical, or pure filler responses
+    
+    IMPORTANT RULES:
+    - Default to scoring 6-7 for most reasonable answers
+    - Be lenient with brevity - short answers can still be good
+    - Reward any specificity or personal examples with 7-9
+    - Only give low scores (0-3) for truly poor responses
+    - When in doubt, score HIGHER not lower
+    - Recognize that candidates may be nervous - be supportive
 
     ONLY RETURN JSON:
     {
-        "relevance": "Relevant/Irrelevant",
+        "relevance": "Relevant/Partially Relevant/Irrelevant",
         "score": 0-10
     }
     """
@@ -83,4 +92,8 @@ def score_answer(question, answer):
         return score, relevance
     except Exception as e:
         print("Scoring LLM error:", str(e))
+        # More generous fallback - if there's an answer with substance, give benefit of doubt
+        if answer and len(answer.strip()) > 10:
+            print("[Scoring] LLM failed but answer has substance, giving benefit of doubt with score 5")
+            return 5, "Relevant"  # Give average score instead of 0
         return 0, "Irrelevant"

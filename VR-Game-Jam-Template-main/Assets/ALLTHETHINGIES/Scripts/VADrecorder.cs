@@ -136,7 +136,7 @@ public class VADVoiceRecorder : MonoBehaviour
     private int segmentStartPosition = -1;
     private int segmentEndPosition = -1;
 
-    bool IsCurrentlyRecordingSegment()
+    public bool IsCurrentlyRecordingSegment()
     {
         return segmentStartPosition >= 0 && (segmentEndPosition <= 0 || segmentEndPosition > segmentStartPosition);
     }

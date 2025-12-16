@@ -427,26 +427,50 @@ public class InterviewSessionManager : MonoBehaviour
     /// Coroutine that monitors for voice input timeout. If no answer is received:
     /// 1. First timeout: Repeat the question and audio
     /// 2. Second timeout: Skip the question with empty answer (0 marks)
+    /// IMPORTANT: Timeout only counts during SILENCE - pauses when voice is detected
     /// </summary>
     private IEnumerator QuestionTimeoutMonitor()
     {
-        Debug.Log($"[Timeout] Starting timeout monitor. Initial timeout: {questionTimeoutSeconds}s");
+        Debug.Log($"[Timeout] Starting timeout monitor. Initial timeout: {questionTimeoutSeconds}s (pauses during voice activity)");
         
         // Reset answer tracking
         hasReceivedAnswer = false;
         isQuestionRepeated = false;
         
-        // Wait for the initial timeout period
-        float elapsed = 0f;
-        while (elapsed < questionTimeoutSeconds && !hasReceivedAnswer)
+        // Wait for the initial timeout period - but PAUSE when voice is detected
+        float silenceTime = 0f;  // Only count silence time
+        float lastCheckTime = Time.time;
+        
+        while (silenceTime < questionTimeoutSeconds && !hasReceivedAnswer)
         {
             yield return new WaitForSeconds(1f);
-            elapsed += 1f;
             
-            // Optional: Log countdown every 10 seconds
-            if (elapsed % 10 == 0)
+            // Check if VAD is currently detecting voice
+            bool isVoiceActive = false;
+            if (vad != null)
             {
-                Debug.Log($"[Timeout] Waiting for answer... {questionTimeoutSeconds - elapsed}s remaining");
+                isVoiceActive = vad.IsCurrentlyRecordingSegment();
+            }
+            
+            // Only increment silence time if NO voice is detected
+            if (!isVoiceActive)
+            {
+                silenceTime += 1f;
+                
+                // Log countdown every 10 seconds of SILENCE
+                if (silenceTime % 10 == 0)
+                {
+                    Debug.Log($"[Timeout] No voice detected... {questionTimeoutSeconds - silenceTime}s of silence remaining");
+                }
+            }
+            else
+            {
+                // Voice detected - reset silence counter and log
+                if (silenceTime > 0)
+                {
+                    Debug.Log($"[Timeout] Voice detected! Pausing timeout. (Had {silenceTime}s of silence)");
+                }
+                silenceTime = 0f;  // Reset silence counter when voice is detected
             }
         }
         
@@ -462,8 +486,19 @@ public class InterviewSessionManager : MonoBehaviour
         isQuestionRepeated = true;
         
         // Stop VAD temporarily to avoid capturing the repeated audio
+        // But only if it's not currently recording a segment
         if (vad != null)
+        {
+            // Check if VAD is currently recording a segment
+            bool isRecording = vad.IsCurrentlyRecordingSegment();
+            if (isRecording)
+            {
+                Debug.Log("[Timeout] VAD is currently recording, waiting for segment to finish before repeating...");
+                // Wait a bit for the recording to finish
+                yield return new WaitForSeconds(2f);
+            }
             vad.StopListening();
+        }
         
         // Display the question again
         if (questionText != null && !string.IsNullOrEmpty(currentQuestion))
@@ -485,16 +520,37 @@ public class InterviewSessionManager : MonoBehaviour
         if (vad != null)
             vad.StartListening();
         
-        // Wait for the repeat timeout period
-        elapsed = 0f;
-        while (elapsed < repeatTimeoutSeconds && !hasReceivedAnswer)
+        // Wait for the repeat timeout period - also PAUSE when voice is detected
+        silenceTime = 0f;  // Reset silence counter
+        while (silenceTime < repeatTimeoutSeconds && !hasReceivedAnswer)
         {
             yield return new WaitForSeconds(1f);
-            elapsed += 1f;
             
-            if (elapsed % 10 == 0)
+            // Check if VAD is currently detecting voice
+            bool isVoiceActive = false;
+            if (vad != null)
             {
-                Debug.Log($"[Timeout] Waiting for answer (after repeat)... {repeatTimeoutSeconds - elapsed}s remaining");
+                isVoiceActive = vad.IsCurrentlyRecordingSegment();
+            }
+            
+            // Only increment silence time if NO voice is detected
+            if (!isVoiceActive)
+            {
+                silenceTime += 1f;
+                
+                if (silenceTime % 10 == 0)
+                {
+                    Debug.Log($"[Timeout] No voice after repeat... {repeatTimeoutSeconds - silenceTime}s of silence remaining");
+                }
+            }
+            else
+            {
+                // Voice detected - reset silence counter
+                if (silenceTime > 0)
+                {
+                    Debug.Log($"[Timeout] Voice detected after repeat! Pausing timeout. (Had {silenceTime}s of silence)");
+                }
+                silenceTime = 0f;
             }
         }
         
@@ -508,9 +564,17 @@ public class InterviewSessionManager : MonoBehaviour
         // Second timeout reached - skip the question
         Debug.LogWarning($"[Timeout] No answer received after repeat. Skipping question with 0 marks...");
         
-        // Stop VAD
+        // Stop VAD, but wait if currently recording
         if (vad != null)
+        {
+            bool isRecording = vad.IsCurrentlyRecordingSegment();
+            if (isRecording)
+            {
+                Debug.Log("[Timeout] VAD is currently recording, waiting for segment to finish before skipping...");
+                yield return new WaitForSeconds(2f);
+            }
             vad.StopListening();
+        }
         
         // Submit empty answer to skip the question
         if (questionText != null)
