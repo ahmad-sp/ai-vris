@@ -1,12 +1,5 @@
 fileFormatVersion: 2
-guid: 4487209fdda91154da619301adb9e6c4
-AssetOrigin:
-  serializedVersion: 1
-  productId: 132084
-  packageName: Clean Vector Icons
-  packageVersion: 1.2
-  assetPath: Assets/Clean Vector Icons/T_5_column_sound2_.png
-  uploadId: 364378
+guid: 1eb2d2d03d3b6af4f9cbe8a2d744e5a5
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -46,11 +39,11 @@ TextureImporter:
     mipBias: 0
     wrapU: 1
     wrapV: 1
-    wrapW: 1
+    wrapW: 0
   nPOTScale: 0
   lightmap: 0
   compressionQuality: 50
-  spriteMode: 2
+  spriteMode: 1
   spriteExtrude: 1
   spriteMeshType: 1
   alignment: 0
@@ -70,9 +63,9 @@ TextureImporter:
   compressionQualitySet: 0
   textureFormatSet: 0
   ignorePngGamma: 0
-  applyGammaDecoding: 1
+  applyGammaDecoding: 0
   swizzle: 50462976
-  cookieLightType: 1
+  cookieLightType: 0
   platformSettings:
   - serializedVersion: 4
     buildTarget: DefaultTexturePlatform
@@ -146,7 +139,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: a1cf162130069984cbe3760e3ae79362
+    spriteID: 5e97eb03825dee720800000000000000
     internalID: 0
     vertices: []
     indices: 

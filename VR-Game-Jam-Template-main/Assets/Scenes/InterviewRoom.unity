@@ -1338,8 +1338,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::InterviewSessionManager
   vad: {fileID: 428153976}
   questionText: {fileID: 598562889}
+  startRecordingButton: {fileID: 0}
+  stopRecordingButton: {fileID: 0}
+  statusText: {fileID: 0}
   metaCombinedText: {fileID: 1109584454}
+  recordingIndicator: {fileID: 0}
   questionAudioSource: {fileID: 1900480119}
+  interviewer: {fileID: 0}
   reportScrollRect: {fileID: 1040401615}
   reportTab: {fileID: 1107200017}
   reportText: {fileID: 948494681}
@@ -1361,6 +1366,9 @@ MonoBehaviour:
         m_CallState: 2
   backendBaseUrl: http://127.0.0.1:8000
   interviewPath: /api/interview/
+  questionTimeoutSeconds: 30
+  repeatTimeoutSeconds: 30
+  enableQuestionTimeout: 1
 --- !u!1 &350421942
 GameObject:
   m_ObjectHideFlags: 0
@@ -1853,8 +1861,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -420}
-  m_SizeDelta: {x: 1500, y: 150}
+  m_AnchoredPosition: {x: 0, y: -465}
+  m_SizeDelta: {x: 1500, y: 240}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &451564965
 MonoBehaviour:

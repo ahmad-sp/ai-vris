@@ -10,10 +10,17 @@ public class InterviewSessionManager : MonoBehaviour
     [Header("References")]
     public VADVoiceRecorder vad; // VAD recorder that raises onTranscript
 
-    [Header("UI & Audio")]
-    public TextMeshProUGUI questionText; // display interviewer question
-    public TextMeshProUGUI metaCombinedText;
-    public AudioSource questionAudioSource; // play interviewer TTS audio
+    [Header("UI References")]
+    public TMP_Text questionText;
+    public Button startRecordingButton;
+    public Button stopRecordingButton;
+    public TMP_Text statusText;
+    public TMP_Text metaCombinedText;
+    public GameObject recordingIndicator; // New indicator reference
+
+    [Header("Characters")]
+    public AudioSource questionAudioSource;
+    public InterviewerController interviewer;
 
     [Header("Report UI")]
     [Tooltip("Panel or tab to show after the interview ends.")]
@@ -47,6 +54,50 @@ public class InterviewSessionManager : MonoBehaviour
     private string currentQuestion = ""; // Store current question for repeat
     private string currentAudioUrl = ""; // Store current audio URL for repeat
     private bool isQuestionRepeated = false; // Track if question has been repeated
+
+    private CanvasGroup indicatorCanvasGroup;
+
+    private void Update()
+    {
+        // Handle Recording Indicator Blinking (Smooth Breathing)
+        if (recordingIndicator != null && vad != null)
+        {
+            // Check if VAD is actually capturing voice/segment
+            bool isRecording = vad.IsCurrentlyRecordingSegment();
+
+            if (isRecording)
+            {
+                if (!recordingIndicator.activeSelf)
+                {
+                    recordingIndicator.SetActive(true);
+                    
+                    // Get or Add CanvasGroup for alpha control
+                    if (indicatorCanvasGroup == null)
+                    {
+                        indicatorCanvasGroup = recordingIndicator.GetComponent<CanvasGroup>();
+                        if (indicatorCanvasGroup == null)
+                            indicatorCanvasGroup = recordingIndicator.AddComponent<CanvasGroup>();
+                    }
+                }
+
+                // Smooth breathing animation using Sine wave
+                // Oscillates between 0.1 (faint) and 1.0 (fully visible)
+                if (indicatorCanvasGroup != null)
+                {
+                    float alpha = 0.2f + 0.8f * Mathf.Abs(Mathf.Sin(Time.time * 2.5f));
+                    indicatorCanvasGroup.alpha = alpha;
+                }
+            }
+            else
+            {
+                // Hide when not recording
+                if (recordingIndicator.activeSelf)
+                {
+                    recordingIndicator.SetActive(false);
+                }
+            }
+        }
+    }
 
     private void Awake()
     {
