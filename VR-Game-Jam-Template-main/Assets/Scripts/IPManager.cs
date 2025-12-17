@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Android;
 
 public class IPManager : MonoBehaviour
 {
@@ -13,5 +14,9 @@ public class IPManager : MonoBehaviour
       baseUrl = backendBaseUrl + baseUrl;
       sessionsEndpoint = backendBaseUrl + sessionsEndpoint;
       reportBaseEndpoint = backendBaseUrl + reportBaseEndpoint;
+        if(!Permission.HasUserAuthorizedPermission(Permission.Microphone))
+        {
+            Permission.RequestUserPermission(Permission.Microphone );
+        }
     }
 }
