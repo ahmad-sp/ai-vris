@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 15003, guid: 0000000000000000e000000000000000, type: 0}
-  m_Name: Test Google XR
+  m_Name: Google XR
   m_EditorClassIdentifier: 
   m_AssetVersion: 1
   m_BuildTarget: 13
@@ -21,7 +21,9 @@ MonoBehaviour:
   m_OverrideGlobalSceneList: 1
   m_Scenes:
   - m_enabled: 1
-    m_path: Assets/Samples/Google Cardboard XR Plugin for Unity/1.31.0/Hello Cardboard/Scenes/HelloCardboard.unity
+    m_path: Assets/Scenes/Main menu.unity
+  - m_enabled: 1
+    m_path: Assets/Scenes/InterviewRoom.unity
   m_ScriptingDefines: []
   m_PlayerSettingsYaml:
     m_Settings: []
@@ -47,7 +49,7 @@ MonoBehaviour:
         m_ExportAsGoogleAndroidProject: 0
         m_DebugSymbolLevel: 1
         m_DebugSymbolFormat: 5
-        m_CurrentDeploymentTargetId: cd486c0f
+        m_CurrentDeploymentTargetId: __builtin__target_default
         m_BuildType: 2
         m_BuildAppBundle: 0
         m_IPAddressToConnect: 

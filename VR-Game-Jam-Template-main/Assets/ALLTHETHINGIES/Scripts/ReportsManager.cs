@@ -19,7 +19,7 @@ public class ReportsManager : MonoBehaviour
     public Button refreshButton;
 
     [Header("API Settings")]
-    private string baseUrl = "http://127.0.0.1:8000/api/";
+    public string baseUrl = "http://127.0.0.1:8000/api/";
     
     private List<ReportData> reports = new List<ReportData>();
 
