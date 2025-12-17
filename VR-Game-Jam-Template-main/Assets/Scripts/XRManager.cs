@@ -7,74 +7,50 @@ using Google.XR.Cardboard;
 
 public class XRManager : MonoBehaviour
 {
-    private bool xrStarted = false;
-    private XRDisplaySubsystem xrDisplaySubsystem;
+    XRDisplaySubsystem display;
 
     IEnumerator Start()
     {
-        yield return StartXR();
-    }
+        var mgr = XRGeneralSettings.Instance.Manager;
 
-    IEnumerator StartXR()
-    {
-        if (XRGeneralSettings.Instance == null ||
-            XRGeneralSettings.Instance.Manager == null)
-        {
-            Debug.LogError("XRGeneralSettings missing");
-            yield break;
-        }
+        yield return mgr.InitializeLoader();
+        mgr.StartSubsystems();
 
-        var manager = XRGeneralSettings.Instance.Manager;
-
-        yield return manager.InitializeLoader();
-
-        if (manager.activeLoader == null)
-        {
-            Debug.LogError("Cardboard XR loader failed");
-            yield break;
-        }
-        manager.StartSubsystems();
-
-        // Get the XRDisplaySubsystem
+        // Get display
         List<XRDisplaySubsystem> displays = new List<XRDisplaySubsystem>();
         SubsystemManager.GetSubsystems(displays);
-        if (displays.Count > 0)
-            xrDisplaySubsystem = displays[0];
+        display = displays[0];
 
-        // Start in mono view
-        if (xrDisplaySubsystem != null)
-            xrDisplaySubsystem.Stop();
-
-        xrStarted = true;
-        Debug.Log("Cardboard XR ready in this scene");
-        // Handle Cardboard buttons (ONLY in this scene)
-        if (xrDisplaySubsystem != null && xrDisplaySubsystem.running)
-        {
-            if (Api.IsCloseButtonPressed)
-                ExitVR();
-
-            if (Api.IsGearButtonPressed)
-                Api.ScanDeviceParams();
-        }
+        // Start in MONO
+        display.Stop();
     }
 
-    public void EnterVR()
+    void Update()
     {
-        if (!xrStarted || xrDisplaySubsystem == null) return;
-
-        xrDisplaySubsystem.Start();
+        // Required for Cardboard
+        Api.UpdateScreenParams();
+    if (Api.IsCloseButtonPressed)
+    {
+        // YOU decide what "close" means
+        SwitchToMono();
     }
 
-    public void ExitVR()
+    if (Api.IsGearButtonPressed)
     {
-        if (xrDisplaySubsystem != null)
-            xrDisplaySubsystem.Stop();
+        // Opens Cardboard QR / lens config
+        Api.ScanDeviceParams();
+    }
     }
 
-    void OnDestroy()
+    public void SwitchToStereo()
     {
-        // Make sure VR is OFF when leaving the scene
-        if (xrDisplaySubsystem != null)
-            xrDisplaySubsystem.Stop();
+        if (!display.running)
+            display.Start();
+    }
+
+    public void SwitchToMono()
+    {
+        if (display.running)
+            display.Stop();
     }
 }
