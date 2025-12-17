@@ -1,6 +1,7 @@
 from groq import Groq
 import os
 from interviewer.models import InterviewResponse, ResumeUpload
+from interviewer.services.llm_service import ask_llm
 
 # Dynamic section flow
 STEPS_ORDER = [
@@ -48,12 +49,14 @@ def is_technical_role(role_name):
         "data engineer",
         "data analyst",
         "ml researcher",
+        "unity developer",
+        "game developer",
     }
 
     if role_l in ALLOWLIST:
         return True
 
-    # Keyword heuristics (substring matches)
+    # Keyword heuristics (substring matches) - REMOVED generic ones like 'it', 'data', 'test'
     KEYWORDS = [
         "engineer",
         "developer",
@@ -72,11 +75,8 @@ def is_technical_role(role_name):
         "ios",
         "security",
         "qa",
-        "test",
         "systems",
         "network",
-        "data",
-        "it",
     ]
     if any(k in role_l for k in KEYWORDS):
         return True
@@ -89,8 +89,9 @@ def is_technical_role(role_name):
     try:
         response = ask_llm(prompt).strip().lower()
         return response.startswith("yes")
-    except Exception:
-        return True  # fallback to allow
+    except Exception as e:
+        print(f"⚠️ [FlowService] is_technical_role LLM check failed: {e}")
+        return False  # safe fallback: deny if unsure
 
 
 def get_next_step(current_step, role=None, session=None):

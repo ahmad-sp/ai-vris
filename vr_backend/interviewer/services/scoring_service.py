@@ -68,10 +68,10 @@ def score_answer(question, answer):
             {"role": "user", "content": f"Question: {question}\nAnswer: {answer}"}
         ]
         
-        print(f"[Scoring] Sending request to Groq with model: llama-3.1-8b-instant")
+        print(f"[Scoring] Sending request to Groq with model: qwen/qwen3-32b")
         
         completion = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="qwen/qwen3-32b",
             messages=messages,
             temperature=1,
             max_completion_tokens=1024,

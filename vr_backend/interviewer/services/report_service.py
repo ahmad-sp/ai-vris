@@ -103,10 +103,10 @@ def generate_report(session):
                     {"role": "user", "content": transcript}
                 ]
                 
-                print(f"[Report] Sending request to Groq with model: llama-3.1-8b-instant")
+                print(f"[Report] Sending request to Groq with model: qwen/qwen3-32b")
                 
                 completion = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
+                    model="qwen/qwen3-32b",
                     messages=messages,
                     temperature=1,
                     max_completion_tokens=800,

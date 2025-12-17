@@ -4,6 +4,8 @@ from groq import Groq
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 
+import re
+
 def ask_llm(prompt):
     """Send prompt safely to Groq LLM and return text."""
     try:
@@ -16,22 +18,27 @@ def ask_llm(prompt):
             {
                 "role": "system",
                 "content": (
-                    "You are Jake,a professional interviewer AI conducting structured interviews. "
-                    "Always stay relevant to the candidate's role and the interview section. "
-                    "Be polite, conversational, and professional — no off-topic or casual chat. "
-                    "IMPORTANT: Only output the actual question text. Do NOT include prefixes like "
-                    "'Interviewer:', 'Next question:', or any other labels. Just provide the clean question."
+                    "You are Jake, a professional interviewer specializing in LOGIC, PROBLEM-SOLVING, and ANALYTICAL REASONING. "
+                    "Your focus is on testing the candidate's logical thinking, algorithmic reasoning, and problem-solving abilities. "
+                    "Maintain a professional, composed, and encouraging tone throughout. "
+                    "FOCUS AREAS: Logic puzzles, algorithmic thinking, pattern recognition, analytical reasoning, and problem-solving strategies. "
+                    "CRITICAL OUTPUT RULES: "
+                    "1. Output ONLY the spoken response/question. "
+                    "2. Do NOT output internal thoughts, <think> tags, or reasoning. "
+                    "3. Do NOT use prefixes like 'Interviewer:' or 'Jake:'. "
+                    "4. Keep questions focused on LOGIC and PROBLEM-SOLVING. "
+                    "5. Ask questions that test analytical thinking and reasoning abilities."
                 ),
             },
             {"role": "user", "content": prompt},
         ]
         
-        print(f"[LLM] Sending request to Groq with model: llama-3.1-8b-instant")
+        print(f"[LLM] Sending request to Groq with model: qwen/qwen3-32b")
         
         completion = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="qwen/qwen3-32b",
             messages=messages,
-            temperature=1,
+            temperature=0.7,  # Lower temperature for more focused/professional output
             max_completion_tokens=1024,
             top_p=1,
             stream=False,
@@ -39,6 +46,10 @@ def ask_llm(prompt):
         )
         
         content = completion.choices[0].message.content.strip()
+        
+        # 🧹 CLEANUP: Remove <think>...</think> blocks if the model generates them
+        content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
+        
         print(f"[LLM] Generated content length: {len(content)}")
         return content
 
@@ -50,11 +61,12 @@ def ask_llm(prompt):
 def generate_interviewer_text(role, current_step, previous_answer=None, resume_summary=None):
     """Generate context-aware interviewer questions dynamically."""
     role_context = (
-        f"You are Jake, a professional interviewer AI conducting structured interviews.\n"
-        f"You are conducting a professional interview for the position of **{role}**.\n"
+        f"You are Jake, a professional interviewer specializing in LOGIC and PROBLEM-SOLVING.\n"
+        f"You are conducting a logic-focused interview for the position of **{role}**.\n"
         f"Current section: **{current_step}**.\n"
         "Your tone should be conversational, confident, and polite.\n"
-        "Avoid personal or casual questions — focus only on professional or technical aspects.\n"
+        "Focus on LOGIC PUZZLES, ALGORITHMIC THINKING, PATTERN RECOGNITION, and ANALYTICAL REASONING.\n"
+        "Ask questions that test problem-solving abilities, not generic behavioral or casual questions.\n"
         "IMPORTANT: Do NOT add any prefixes like 'Interviewer:', 'Jake:', or any role labels to your responses. "
         "Respond directly with the interview questions or statements only."
     )
@@ -65,9 +77,9 @@ def generate_interviewer_text(role, current_step, previous_answer=None, resume_s
 {role_context}
 
 Start the interview by greeting the candidate warmly.
-Then ask the first question to start the {current_step} section — something like "Can you tell me about yourself?",
-but word it naturally and professionally.
-Avoid being robotic or too formal.
+Then ask the first question to start the {current_step} section — ask about their interest in logic and problem-solving,
+or ask them to solve a simple logic puzzle to warm up.
+Keep it natural and friendly but focused on logical thinking.
 IMPORTANT: Output only the greeting and question text, without any prefixes like 'Interviewer:' or 'Next question:'.
 """
         return ask_llm(prompt)
@@ -125,7 +137,8 @@ IMPORTANT: Output only the question text, without any prefixes like 'Interviewer
             prompt = f"""
 {role_context}
 
-Ask ONE question about the candidate's professional background and experience relevant to the {role} position.
+Ask ONE logic-focused question based on analytical thinking or problem-solving skills relevant to the {role} position.
+For example: "Can you walk me through your approach to solving complex problems?" or "Tell me about a time you had to think logically under pressure."
 Make it conversational and engaging.
 IMPORTANT: Output only the question text, without any prefixes like 'Interviewer:' or 'Next question:'.
 """
@@ -174,8 +187,10 @@ Remember: ONE question. Build on their answer or explore something new from thei
 
 Your job:
 - Appreciate their response briefly (1 short line only).
-- Ask the next relevant follow-up question that fits the {current_step} section.
-- Keep it concise and related to {role}.
+- Ask the next LOGIC-FOCUSED question that fits the {current_step} section.
+- Focus on: logic puzzles, algorithms, pattern recognition, or analytical reasoning.
+- Examples: "Here's a logic puzzle...", "How would you approach...", "What's your strategy for..."
+- Keep it concise and related to logical thinking for the {role} role.
 - Avoid repeating or generic questions.
 """
         
@@ -204,7 +219,12 @@ Make it conversational and engaging.
         else:
             prompt += f"""
 
-Start the {current_step} section by asking a relevant, role-based technical or behavioral question.
+Start the {current_step} section by asking a LOGIC or PROBLEM-SOLVING question.
+Examples:
+- Logic puzzles: "If you have 3 switches and one light bulb in another room..."
+- Algorithmic thinking: "How would you find the missing number in a sequence?"
+- Pattern recognition: "What comes next in this pattern: 2, 4, 8, 16...?"
+- Analytical reasoning: "How would you optimize a search algorithm?"
 Keep it short, natural, and clear — not robotic.
 """
         

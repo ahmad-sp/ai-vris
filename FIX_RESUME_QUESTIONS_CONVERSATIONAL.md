@@ -358,7 +358,7 @@ Only Resume Questions now has the enhanced conversational flow.
 ```python
 # In Django console, look for:
 [LLMService] Generating FIRST resume question with summary (length: XXX)
-[LLM] Sending request to Groq with model: llama-3.1-8b-instant
+[LLM] Sending request to Groq with model: qwen/qwen3-32b
 [LLM] Generated content length: XXX
 ```
 
