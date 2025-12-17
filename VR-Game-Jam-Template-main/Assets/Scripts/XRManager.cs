@@ -1,11 +1,14 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.XR;
 using UnityEngine.XR.Management;
 using Google.XR.Cardboard;
 
 public class XRManager : MonoBehaviour
 {
     private bool xrStarted = false;
+    private XRDisplaySubsystem xrDisplaySubsystem;
 
     IEnumerator Start()
     {
@@ -30,23 +33,22 @@ public class XRManager : MonoBehaviour
             Debug.LogError("Cardboard XR loader failed");
             yield break;
         }
-
         manager.StartSubsystems();
 
+        // Get the XRDisplaySubsystem
+        List<XRDisplaySubsystem> displays = new List<XRDisplaySubsystem>();
+        SubsystemManager.GetSubsystems(displays);
+        if (displays.Count > 0)
+            xrDisplaySubsystem = displays[0];
+
         // Start in mono view
-        UnityEngine.XR.XRSettings.enabled = false;
+        if (xrDisplaySubsystem != null)
+            xrDisplaySubsystem.Stop();
 
         xrStarted = true;
         Debug.Log("Cardboard XR ready in this scene");
-    }
-
-    void Update()
-    {
-        // Required for Cardboard XR
-        Api.UpdateScreenParams();
-
         // Handle Cardboard buttons (ONLY in this scene)
-        if (UnityEngine.XR.XRSettings.enabled)
+        if (xrDisplaySubsystem != null && xrDisplaySubsystem.running)
         {
             if (Api.IsCloseButtonPressed)
                 ExitVR();
@@ -56,23 +58,23 @@ public class XRManager : MonoBehaviour
         }
     }
 
-    // ===== UI BUTTONS =====
-
     public void EnterVR()
     {
-        if (!xrStarted) return;
+        if (!xrStarted || xrDisplaySubsystem == null) return;
 
-        UnityEngine.XR.XRSettings.enabled = true;
+        xrDisplaySubsystem.Start();
     }
 
     public void ExitVR()
     {
-        UnityEngine.XR.XRSettings.enabled = false;
+        if (xrDisplaySubsystem != null)
+            xrDisplaySubsystem.Stop();
     }
 
     void OnDestroy()
     {
         // Make sure VR is OFF when leaving the scene
-        UnityEngine.XR.XRSettings.enabled = false;
+        if (xrDisplaySubsystem != null)
+            xrDisplaySubsystem.Stop();
     }
 }

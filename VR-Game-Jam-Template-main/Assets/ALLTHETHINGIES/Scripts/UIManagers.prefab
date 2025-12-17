@@ -11,6 +11,8 @@ GameObject:
   - component: {fileID: 7710303440094332912}
   - component: {fileID: 1088207675116228696}
   - component: {fileID: 163990363581181922}
+  - component: {fileID: 6783620309410507738}
+  - component: {fileID: 8212334366807832839}
   m_Layer: 0
   m_Name: UIManagers
   m_TagString: Untagged
@@ -78,13 +80,70 @@ MonoBehaviour:
   optionsPanel: {fileID: 0}
   helpPanel: {fileID: 0}
   aboutPanel: {fileID: 0}
+  reportsController: {fileID: 0}
   startUIButton: {fileID: 0}
   reportsUIButton: {fileID: 0}
   optionsUIButton: {fileID: 0}
   helpUIButton: {fileID: 0}
   quitUIButton: {fileID: 0}
   aboutUIButton: {fileID: 0}
+  candidateFormController: {fileID: 0}
   reportEndpoint: 
   recentReportText: {fileID: 0}
   uiClickSound: {fileID: 0}
   panelAnimationDuration: 0.15
+--- !u!114 &6783620309410507738
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 28921712718628448}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 63fd2aa608511dd4ba4f9946d6e2cc4f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InterviewSessionManager
+  vad: {fileID: 0}
+  phenomesOutput: {fileID: 0}
+  questionText: {fileID: 0}
+  startRecordingButton: {fileID: 0}
+  stopRecordingButton: {fileID: 0}
+  statusText: {fileID: 0}
+  metaCombinedText: {fileID: 0}
+  recordingIndicator: {fileID: 0}
+  questionAudioSource: {fileID: 0}
+  interviewer: {fileID: 0}
+  reportScrollRect: {fileID: 0}
+  reportTab: {fileID: 0}
+  reportText: {fileID: 0}
+  reportFormatQuery: ?format=text
+  onQuestionReceived:
+    m_PersistentCalls:
+      m_Calls: []
+  backendBaseUrl: http://192.168.1.76:8000
+  interviewPath: /api/interview/
+  questionTimeoutSeconds: 30
+  repeatTimeoutSeconds: 30
+  enableQuestionTimeout: 1
+--- !u!114 &8212334366807832839
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 28921712718628448}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2651a99b11e9a1e4da623f388c8b749c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CandidateFormController
+  candidateFormPanel: {fileID: 0}
+  nameInput: {fileID: 0}
+  roleInput: {fileID: 0}
+  validationText: {fileID: 0}
+  submitButton: {fileID: 0}
+  cancelButton: {fileID: 0}
+  startSceneName: InterviewRoom
+  backendBaseUrl: http://192.168.1.76:8000
+  createSessionPath: /api/interview/

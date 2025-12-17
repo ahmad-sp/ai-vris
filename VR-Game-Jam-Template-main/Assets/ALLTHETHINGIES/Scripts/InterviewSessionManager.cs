@@ -102,6 +102,7 @@ public class InterviewSessionManager : MonoBehaviour
 
     private void Awake()
     {
+        backendBaseUrl = FindFirstObjectByType<IPManager>()?.backendBaseUrl;
         if (vad != null)
         {
             if (vad.onTranscript == null)

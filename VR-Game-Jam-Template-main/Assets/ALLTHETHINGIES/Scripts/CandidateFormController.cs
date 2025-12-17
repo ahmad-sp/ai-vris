@@ -31,6 +31,7 @@ public class CandidateFormController : MonoBehaviour
 
     void Start()
     {
+        backendBaseUrl = FindFirstObjectByType<IPManager>().backendBaseUrl;
         // CONFLICT PREVENTION:
         // If the more advanced "CandidateInfoForm" is present in the scene, 
         // this simple controller should stand down to prevent double-submissions.

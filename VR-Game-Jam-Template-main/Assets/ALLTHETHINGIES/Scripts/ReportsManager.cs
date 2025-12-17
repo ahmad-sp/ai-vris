@@ -44,6 +44,7 @@ public class ReportsManager : MonoBehaviour
 
     void Start()
     {
+        baseUrl = FindFirstObjectByType<IPManager>()?.baseUrl;
         // Set up button listeners
         backButton.onClick.AddListener(BackToList);
         refreshButton.onClick.AddListener(RefreshReports);

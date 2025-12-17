@@ -4,8 +4,12 @@ using System.Collections;
 
 public class VoiceUploader : MonoBehaviour
 {
-    public string apiUrl = "http://192.168.133.1:8000/api/audio-to-text/";  // Django endpoint
+    public string apiUrl = "/api/audio-to-text/";  // Django endpoint
 
+    private void Start()
+    {
+        apiUrl = FindFirstObjectByType<IPManager>()?.backendBaseUrl + apiUrl;
+    }
     // Example: call this after recording is saved
     public void UploadRecordedFile(string filePath)
     {

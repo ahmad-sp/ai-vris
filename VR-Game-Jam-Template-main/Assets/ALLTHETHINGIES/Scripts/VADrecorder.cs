@@ -25,8 +25,8 @@ public class VADVoiceRecorder : MonoBehaviour
     public UnityEvent<string> onTranscript; // fired when transcript is parsed
 
     [Header("API endpoints (use your machine IP)")]
-    public string sttUploadUrl = "http://192.168.133.1:8000/api/audio-to-text/"; // change to your host/IP
-    public string interviewStepUrl = "http://192.168.133.1:8000/api/interview/"; // optional: forward transcript
+    public string sttUploadUrl = "/api/audio-to-text/"; // change to your host/IP
+    public string interviewStepUrl = "/api/interview/"; // optional: forward transcript
 
     // internal
     private AudioClip recordingClip;
@@ -38,6 +38,8 @@ public class VADVoiceRecorder : MonoBehaviour
 
     void Start()
     {
+        sttUploadUrl = FindFirstObjectByType<IPManager>()?.backendBaseUrl + sttUploadUrl;
+        interviewStepUrl = FindFirstObjectByType<IPManager>()?.backendBaseUrl + interviewStepUrl;
         savePath = Path.Combine(Application.persistentDataPath, "candidate_audio.wav");
         Debug.Log("[VAD] Save path: " + savePath);
         if (autoStartOnAwake)

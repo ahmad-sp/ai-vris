@@ -73,6 +73,7 @@ public class CandidateInfoForm : MonoBehaviour
 
     private void Awake()
     {
+        backendBaseUrl = FindFirstObjectByType<IPManager>()?.backendBaseUrl;
         // FORCE AUTO START to be true to ensure the flow continues,
         // overriding any disabled checkbox in the Inspector.
         autoStartNextScene = true;

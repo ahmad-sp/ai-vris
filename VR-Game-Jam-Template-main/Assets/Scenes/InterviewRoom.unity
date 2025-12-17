@@ -876,7 +876,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 80ce9d48db4ca0748852d76092570a97, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VoiceUploader
-  apiUrl: http://127.0.0.1:8000/api/audio-to-text/
+  apiUrl: /api/audio-to-text/
 --- !u!4 &428153974
 Transform:
   m_ObjectHideFlags: 0
@@ -929,8 +929,8 @@ MonoBehaviour:
   onTranscript:
     m_PersistentCalls:
       m_Calls: []
-  sttUploadUrl: http://127.0.0.1:8000/api/audio-to-text/
-  interviewStepUrl: http://127.0.0.1:8000/api/interview/
+  sttUploadUrl: /api/audio-to-text/
+  interviewStepUrl: /api/interview/
 --- !u!1 &451564963
 GameObject:
   m_ObjectHideFlags: 0
