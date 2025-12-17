@@ -1647,8 +1647,13 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
+<<<<<<< HEAD
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: -553}
+=======
+  m_AnchoredPosition: {x: 0, y: 0.000030517578}
+  m_SizeDelta: {x: 0, y: -238.39}
+>>>>>>> parent of c6aa608 (UI stuff mainly)
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &554409968
 MonoBehaviour:
@@ -1664,6 +1669,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.ContentSizeFitter
   m_HorizontalFit: 0
   m_VerticalFit: 2
+<<<<<<< HEAD
 --- !u!1 &558633978
 GameObject:
   m_ObjectHideFlags: 0
@@ -1700,6 +1706,8 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: -20, y: -20}
   m_Pivot: {x: 0.5, y: 0.5}
+=======
+>>>>>>> parent of c6aa608 (UI stuff mainly)
 --- !u!1 &578960569
 GameObject:
   m_ObjectHideFlags: 0
@@ -2641,7 +2649,11 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
+<<<<<<< HEAD
   m_SizeDelta: {x: 50, y: 37}
+=======
+  m_SizeDelta: {x: 100, y: 100}
+>>>>>>> parent of c6aa608 (UI stuff mainly)
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &915386556
 MonoBehaviour:
@@ -2819,7 +2831,12 @@ MonoBehaviour:
     as they are critical for prompt engineering."
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 95f0c57dd54f54f4c9b5fb2eaa869cf5, type: 2}
+<<<<<<< HEAD
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+=======
+  m_sharedMaterial: {fileID: 447584655773993925, guid: 95f0c57dd54f54f4c9b5fb2eaa869cf5,
+    type: 2}
+>>>>>>> parent of c6aa608 (UI stuff mainly)
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -2843,8 +2860,13 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
+<<<<<<< HEAD
   m_fontSize: 36
   m_fontSizeBase: 36
+=======
+  m_fontSize: 32
+  m_fontSizeBase: 32
+>>>>>>> parent of c6aa608 (UI stuff mainly)
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -3562,7 +3584,11 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
+<<<<<<< HEAD
   m_SizeDelta: {x: 50, y: 37}
+=======
+  m_SizeDelta: {x: 100, y: 100}
+>>>>>>> parent of c6aa608 (UI stuff mainly)
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1069451732
 MonoBehaviour:
@@ -4038,7 +4064,11 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
+<<<<<<< HEAD
   m_SizeDelta: {x: 50, y: 37}
+=======
+  m_SizeDelta: {x: 100, y: 100}
+>>>>>>> parent of c6aa608 (UI stuff mainly)
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1253968956
 MonoBehaviour:
@@ -4994,7 +5024,11 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
+<<<<<<< HEAD
   m_SizeDelta: {x: -17, y: -17}
+=======
+  m_SizeDelta: {x: 0, y: -17}
+>>>>>>> parent of c6aa608 (UI stuff mainly)
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &1612286968
 MonoBehaviour:
