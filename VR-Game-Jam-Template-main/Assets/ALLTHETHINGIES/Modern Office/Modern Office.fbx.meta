@@ -1,9 +1,14 @@
 fileFormatVersion: 2
 guid: b47e88537538c8e4ea7e484efcd80ae6
 ModelImporter:
-  serializedVersion: 24200
+  serializedVersion: 22200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Lights
+    second: {fileID: 2100000, guid: 936b251f9625e41a4a92ec33de3dfbf9, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
@@ -56,9 +61,6 @@ ModelImporter:
     maxBonesPerVertex: 4
     minBoneWeight: 0.001
     optimizeBones: 1
-    generateMeshLods: 0
-    meshLodGenerationFlags: 0
-    maximumMeshLod: -1
     meshOptimizationFlags: -1
     indexFormat: 0
     secondaryUVAngleDistortion: 8
