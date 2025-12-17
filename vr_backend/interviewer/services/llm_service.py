@@ -18,16 +18,14 @@ def ask_llm(prompt):
             {
                 "role": "system",
                 "content": (
-                    "You are Jake, a professional interviewer specializing in LOGIC, PROBLEM-SOLVING, and ANALYTICAL REASONING. "
-                    "Your focus is on testing the candidate's logical thinking, algorithmic reasoning, and problem-solving abilities. "
-                    "Maintain a professional, composed, and encouraging tone throughout. "
-                    "FOCUS AREAS: Logic puzzles, algorithmic thinking, pattern recognition, analytical reasoning, and problem-solving strategies. "
-                    "CRITICAL OUTPUT RULES: "
-                    "1. Output ONLY the spoken response/question. "
-                    "2. Do NOT output internal thoughts, <think> tags, or reasoning. "
-                    "3. Do NOT use prefixes like 'Interviewer:' or 'Jake:'. "
-                    "4. Keep questions focused on LOGIC and PROBLEM-SOLVING. "
-                    "5. Ask questions that test analytical thinking and reasoning abilities."
+                    "You are Jake, a professional interviewer conducting a structured job interview. "
+                    "Maintain a professional, composed, and encouraging demeanor throughout the interview. "
+                    "Your goal is to assess the candidate's qualifications, skills, and cultural fit. "
+                    "OUTPUT REQUIREMENTS: "
+                    "1. Respond with ONLY the spoken interview content - questions, acknowledgments, or statements. "
+                    "2. Never include internal notes, reasoning, commentary, or any meta-text. "
+                    "3. Never use prefixes like 'Interviewer:', 'Jake:', or similar labels. "
+                    "4. Keep responses professional, clear, and conversational."
                 ),
             },
             {"role": "user", "content": prompt},
@@ -47,8 +45,9 @@ def ask_llm(prompt):
         
         content = completion.choices[0].message.content.strip()
         
-        # 🧹 CLEANUP: Remove <think>...</think> blocks if the model generates them
-        content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
+        # Clean up any internal reasoning or tags that may appear in output
+        content = re.sub(r'<[^>]+>.*?</[^>]+>', '', content, flags=re.DOTALL).strip()
+        content = re.sub(r'<[^>]+>', '', content).strip()
         
         print(f"[LLM] Generated content length: {len(content)}")
         return content
@@ -61,14 +60,17 @@ def ask_llm(prompt):
 def generate_interviewer_text(role, current_step, previous_answer=None, resume_summary=None):
     """Generate context-aware interviewer questions dynamically."""
     role_context = (
-        f"You are Jake, a professional interviewer specializing in LOGIC and PROBLEM-SOLVING.\n"
-        f"You are conducting a logic-focused interview for the position of **{role}**.\n"
-        f"Current section: **{current_step}**.\n"
-        "Your tone should be conversational, confident, and polite.\n"
-        "Focus on LOGIC PUZZLES, ALGORITHMIC THINKING, PATTERN RECOGNITION, and ANALYTICAL REASONING.\n"
-        "Ask questions that test problem-solving abilities, not generic behavioral or casual questions.\n"
-        "IMPORTANT: Do NOT add any prefixes like 'Interviewer:', 'Jake:', or any role labels to your responses. "
-        "Respond directly with the interview questions or statements only."
+        f"You are Jake, a professional interviewer conducting a structured job interview.\n"
+        f"Position: {role}\n"
+        f"Current Section: {current_step}\n\n"
+        "INTERVIEW GUIDELINES:\n"
+        "- Maintain a professional, composed, and encouraging tone\n"
+        "- Ask clear, relevant questions appropriate for the role and section\n"
+        "- Focus on professional qualifications, experience, and skills\n\n"
+        "OUTPUT RULES:\n"
+        "- Respond with only the spoken interview content\n"
+        "- Do not include any prefixes, labels, or internal notes\n"
+        "- No meta-commentary or reasoning - just the interview dialogue"
     )
 
     # 1. Greeting / Introduction
@@ -76,11 +78,11 @@ def generate_interviewer_text(role, current_step, previous_answer=None, resume_s
         prompt = f"""
 {role_context}
 
-Start the interview by greeting the candidate warmly.
-Then ask the first question to start the {current_step} section — ask about their interest in logic and problem-solving,
-or ask them to solve a simple logic puzzle to warm up.
-Keep it natural and friendly but focused on logical thinking.
-IMPORTANT: Output only the greeting and question text, without any prefixes like 'Interviewer:' or 'Next question:'.
+Begin the interview with a professional greeting and introduce yourself briefly.
+Then ask an opening question to learn about the candidate's background.
+
+Keep the greeting warm but professional. The opening question should invite the candidate
+to share their professional background and what brings them to this opportunity.
 """
         return ask_llm(prompt)
 
@@ -89,15 +91,16 @@ IMPORTANT: Output only the greeting and question text, without any prefixes like
         prompt = f"""
 {role_context}
 
-Conclude the interview politely.
-Thank the candidate for their time, say it was a pleasure speaking with them,
-and mention that feedback or results will be shared soon.
-Do NOT ask any more questions — this is the end of the session.
-IMPORTANT: Output only the closing message, without any prefixes like 'Interviewer:' or 'Next question:'.
+Conclude the interview professionally.
+- Thank the candidate for their time and participation
+- Express that it was a pleasure speaking with them
+- Mention that the team will follow up regarding next steps
+- Keep the closing warm and professional
+- Do not ask any additional questions
 """
         return ask_llm(prompt)
 
-    # 💼 4. Resume Questions Section - FIRST QUESTION
+    # Resume Questions Section - FIRST QUESTION
     if current_step.lower() == "resume questions" and not previous_answer:
         if resume_summary:
             print(f"[LLMService] Generating FIRST resume question with summary (length: {len(resume_summary)})")
@@ -107,57 +110,41 @@ IMPORTANT: Output only the closing message, without any prefixes like 'Interview
 Candidate Resume Summary:
 {resume_summary}
 
-You are starting the Resume Questions section. This is your FIRST question about their resume.
+This is the Resume Questions section. Ask a single, focused question about the candidate's background.
 
-CRITICAL INSTRUCTIONS:
-- Ask ONLY ONE question - not multiple questions
-- Make it conversational and natural, like you're having a dialogue
-- Pick ONE specific thing from their resume that interests you most
-- Ask about it in a curious, engaging way
-- DO NOT list multiple questions or use bullet points
-- DO NOT ask "Can you tell me about X? And also Y? And Z?"
-- Just ask about ONE thing that caught your attention
+QUESTION GUIDELINES:
+- Select ONE specific element from their resume that is relevant to the {role} position
+- Ask about it in a way that invites detailed discussion
+- Focus on experience, projects, or skills that demonstrate their qualifications
+- Keep the question clear and professional
 
-Examples of GOOD questions (pick ONE similar approach):
-- "I noticed you worked with TensorFlow and PyTorch - what made you choose one over the other for your projects?"
-- "Your VR Interview Simulator project sounds fascinating! Can you walk me through how you built that?"
-- "I see you did an internship at Elevate Labs - what was the most challenging part of that experience?"
-
-Examples of BAD questions (DO NOT DO THIS):
-- "Can you tell me about your experience with X? Also, what about Y? And how did you handle Z?" (Multiple questions)
-- Listing 5-10 questions all at once
-
-Remember: ONE question only. Make it specific to their resume. Make it conversational.
-IMPORTANT: Output only the question text, without any prefixes like 'Interviewer:' or 'Next question:'.
+Ask only one question. Be specific and reference something from their resume.
 """
             return ask_llm(prompt)
         else:
-            print(f"[LLMService] ⚠️ Resume Questions step but no resume_summary provided!")
-            # Fallback to generic question if resume summary is missing
+            print(f"[LLMService] Resume Questions step but no resume_summary provided")
             prompt = f"""
 {role_context}
 
-Ask ONE logic-focused question based on analytical thinking or problem-solving skills relevant to the {role} position.
-For example: "Can you walk me through your approach to solving complex problems?" or "Tell me about a time you had to think logically under pressure."
-Make it conversational and engaging.
-IMPORTANT: Output only the question text, without any prefixes like 'Interviewer:' or 'Next question:'.
+Ask a professional question about the candidate's relevant experience and background for the {role} position.
+Focus on their professional journey and key accomplishments.
 """
             return ask_llm(prompt)
 
 
-    # 💬 5. Ongoing Questions (including resume questions follow-up)
+    # Ongoing Questions (including resume questions follow-up)
     if previous_answer:
         prompt = f"""
 {role_context}
 
-The candidate just said: "{previous_answer}"
+Candidate's response: "{previous_answer}"
 """
         
         # Add resume context if we're in resume questions section
         if current_step.lower() == "resume questions" and resume_summary:
             prompt += f"""
 
-Candidate Resume Summary (for context):
+Candidate Resume Summary:
 {resume_summary}
 
 CRITICAL INSTRUCTIONS FOR RESUME QUESTIONS FOLLOW-UP:
@@ -185,51 +172,46 @@ Remember: ONE question. Build on their answer or explore something new from thei
         else:
             prompt += f"""
 
-Your job:
-- Appreciate their response briefly (1 short line only).
-- Ask the next LOGIC-FOCUSED question that fits the {current_step} section.
-- Focus on: logic puzzles, algorithms, pattern recognition, or analytical reasoning.
-- Examples: "Here's a logic puzzle...", "How would you approach...", "What's your strategy for..."
-- Keep it concise and related to logical thinking for the {role} role.
-- Avoid repeating or generic questions.
+RESPONSE GUIDELINES:
+- Provide brief acknowledgment of their answer
+- Ask the next relevant question for the {current_step} section
+- Ensure the question is appropriate for the {role} position
+- Keep the interview moving forward professionally
 """
         
-        prompt += """
-IMPORTANT: Output only the response text, without any prefixes like 'Interviewer:' or 'Next question:'.
-"""
         return ask_llm(prompt)
     
-    # 💬 6. Initial question for other sections (not resume, not greeting)
+    # Initial question for other sections (not resume, not greeting)
     else:
         prompt = f"""
 {role_context}
 """
         
-        # This shouldn't happen for resume questions anymore (handled above)
-        # But keep as fallback
         if current_step.lower() == "resume questions" and resume_summary:
             prompt += f"""
 
 Candidate Resume Summary:
 {resume_summary}
 
-Ask ONE specific question about their resume. Pick something interesting from their background.
-Make it conversational and engaging.
+Ask one specific question about their background. Focus on experience or skills relevant to the {role} position.
+"""
+        elif current_step.lower() == "technical":
+            prompt += f"""
+
+Begin the Technical section with a relevant technical question for the {role} position.
+The question should assess the candidate's technical knowledge and problem-solving abilities.
+"""
+        elif current_step.lower() == "behavioral/situational":
+            prompt += f"""
+
+Begin the Behavioral section with a situational question relevant to the {role} position.
+Ask about how they handled a specific professional situation or challenge.
 """
         else:
             prompt += f"""
 
-Start the {current_step} section by asking a LOGIC or PROBLEM-SOLVING question.
-Examples:
-- Logic puzzles: "If you have 3 switches and one light bulb in another room..."
-- Algorithmic thinking: "How would you find the missing number in a sequence?"
-- Pattern recognition: "What comes next in this pattern: 2, 4, 8, 16...?"
-- Analytical reasoning: "How would you optimize a search algorithm?"
-Keep it short, natural, and clear — not robotic.
-"""
-        
-        prompt += """
-IMPORTANT: Output only the question text, without any prefixes like 'Interviewer:' or 'Next question:'.
+Begin the {current_step} section with an appropriate question for the {role} position.
+Keep the question clear, professional, and relevant.
 """
         
         return ask_llm(prompt)

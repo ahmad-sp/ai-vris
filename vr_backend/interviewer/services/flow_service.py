@@ -16,82 +16,47 @@ STEPS_ORDER = [
 
 
 def is_technical_role(role_name):
-    """Decide if a role is technical using deterministic checks first, then LLM as fallback."""
+    """
+    Use LLM to determine if a role is technical.
+    Accepts all technical and technical-adjacent roles.
+    """
     if not role_name:
-        return False
-
-    role_l = role_name.strip().lower()
-
-    # Common technical roles allowlist (exact match)
-    ALLOWLIST = {
-        "software engineer",
-        "backend engineer",
-        "frontend engineer",
-        "full stack developer",
-        "full-stack developer",
-        "data scientist",
-        "ml engineer",
-        "machine learning engineer",
-        "ai engineer",
-        "devops engineer",
-        "site reliability engineer",
-        "sre",
-        "mobile developer",
-        "android developer",
-        "ios developer",
-        "cloud engineer",
-        "security engineer",
-        "qa engineer",
-        "test engineer",
-        "systems engineer",
-        "network engineer",
-        "it support engineer",
-        "data engineer",
-        "data analyst",
-        "ml researcher",
-        "unity developer",
-        "game developer",
-    }
-
-    if role_l in ALLOWLIST:
+        return True  # Default to accepting if no role specified
+    
+    role_name = role_name.strip()
+    if not role_name:
         return True
+    
+    print(f"[FlowService] Checking if '{role_name}' is a technical role...")
+    
+    prompt = f"""Is "{role_name}" a technical or professional role suitable for a technical interview?
 
-    # Keyword heuristics (substring matches) - REMOVED generic ones like 'it', 'data', 'test'
-    KEYWORDS = [
-        "engineer",
-        "developer",
-        "scientist",
-        "ml",
-        "ai",
-        "devops",
-        "sre",
-        "cloud",
-        "backend",
-        "front-end",
-        "frontend",
-        "full stack",
-        "mobile",
-        "android",
-        "ios",
-        "security",
-        "qa",
-        "systems",
-        "network",
-    ]
-    if any(k in role_l for k in KEYWORDS):
-        return True
+Technical roles include but are not limited to:
+- Software/IT roles (engineer, developer, architect, etc.)
+- Data roles (analyst, scientist, engineer)
+- Product/Program management
+- Design roles (UX, UI, Product Design)
+- QA/Testing roles
+- DevOps/Cloud/Infrastructure
+- Technical leadership
+- Any role that works with technology or in tech companies
 
-    # Fallback: ask LLM
-    prompt = (
-        f"Is '{role_name}' a technical/IT role like software engineer, data scientist, AI engineer, etc.? "
-        f"Answer only Yes or No."
-    )
+Answer with just "Yes" or "No"."""
+    
     try:
         response = ask_llm(prompt).strip().lower()
-        return response.startswith("yes")
+        # Clean up response - remove any extra content
+        response = response.replace('"', '').replace("'", "").strip()
+        
+        # Check if response starts with or contains "yes"
+        is_technical = response.startswith("yes") or "yes" in response.split()[0] if response else True
+        
+        print(f"[FlowService] LLM response: '{response}' -> is_technical: {is_technical}")
+        return is_technical
+        
     except Exception as e:
-        print(f"⚠️ [FlowService] is_technical_role LLM check failed: {e}")
-        return False  # safe fallback: deny if unsure
+        print(f"[FlowService] is_technical_role LLM check failed: {e}")
+        return True  # Accept by default - be inclusive
 
 
 def get_next_step(current_step, role=None, session=None):

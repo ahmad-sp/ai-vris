@@ -1,9 +1,47 @@
 import os
+import re
 from django.conf import settings
 from interviewer.models import InterviewReport
 from groq import Groq
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+
+def clean_report_content(content):
+    """
+    Remove any think tags, internal reasoning, or meta-commentary from report content.
+    """
+    if not content:
+        return content
+    
+    # Remove <think>...</think> blocks and any similar tags
+    cleaned = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL | re.IGNORECASE)
+    cleaned = re.sub(r'<reasoning>.*?</reasoning>', '', cleaned, flags=re.DOTALL | re.IGNORECASE)
+    cleaned = re.sub(r'<internal>.*?</internal>', '', cleaned, flags=re.DOTALL | re.IGNORECASE)
+    
+    # Remove any remaining XML-like tags
+    cleaned = re.sub(r'<[^>]+>.*?</[^>]+>', '', cleaned, flags=re.DOTALL)
+    cleaned = re.sub(r'<[^>]+/?>', '', cleaned)
+    
+    # Remove lines that look like internal notes
+    lines = cleaned.split('\n')
+    filtered_lines = []
+    for line in lines:
+        line_lower = line.strip().lower()
+        # Skip lines that look like internal reasoning
+        if line_lower.startswith(('let me', 'i need to', 'first,', 'now,', 'okay,', 'alright,', 'looking at', 'starting with')):
+            continue
+        if 'i should' in line_lower or 'i will' in line_lower:
+            continue
+        filtered_lines.append(line)
+    
+    cleaned = '\n'.join(filtered_lines)
+    
+    # Clean up extra whitespace
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+    cleaned = cleaned.strip()
+    
+    return cleaned
 
 def generate_report(session):
     """
@@ -47,45 +85,98 @@ def generate_report(session):
         transcript += f"Overall Score: {overall:.1f}/10 across {len(total_scores)} scored answer(s)\n"
     else:
         transcript += "\nSection Score Summary:\nNo scored answers yet.\n"
-    system_prompt = """
-    You are an interview evaluator. Produce plain-text output (no Markdown bold, no asterisks) using this layout exactly:
+    system_prompt = """Generate a DETAILED professional interview assessment report. Output the report content ONLY - no thinking, no reasoning, no tags.
 
-    Candidate Summary – {Role} (Interview {Completed/Incomplete})
-    Candidate: <name>
-    Role: <role>
-    Status: Completed Interview / Incomplete Interview
+FORMAT (follow exactly):
 
-    Summary of Responses
-    Introduction:
-    <1-2 sentence summary or "No data collected yet.">
-    Technical Question(s):
-    <summaries of each key response>
+================================================================================
+INTERVIEW ASSESSMENT REPORT
+================================================================================
 
-    Section Scores
-    Introduction: <avg>/10 (<#> answers)
-    Resume Questions: <avg>/10 (<#> answers)
-    Technical: <avg>/10 (<#> answers)
-    Behavioral/Situational: <avg>/10 (<#> answers)
-    Wrap-Up: <avg>/10 (<#> answers)
-    Overall Score: <overall>/10 (<total answers>)
+CANDIDATE INFORMATION
+Candidate: [Full name]
+Position Applied: [Role]
+Interview Status: [Completed/Incomplete]
+Date: [Current date if available, otherwise "On Record"]
 
-    Strengths
-    - <strength 1>
-    - <strength 2>
+--------------------------------------------------------------------------------
+EXECUTIVE SUMMARY
+--------------------------------------------------------------------------------
+[3-4 sentences providing a high-level overview of the candidate's performance, key strengths, and main concerns. Be specific about what stood out positively and negatively.]
 
-    Areas for Improvement
-    - <area 1>
-    - <area 2>
+--------------------------------------------------------------------------------
+DETAILED RESPONSE ANALYSIS
+--------------------------------------------------------------------------------
 
-    Preliminary Assessment
-    <2-3 sentences. Mention if the interview is incomplete.>
+INTRODUCTION & BACKGROUND:
+[2-3 sentences analyzing how the candidate presented themselves, their communication style, and initial impression. Mention specific details they shared.]
 
-    Recommendations / Next Steps
-    - <action item 1>
-    - <action item 2>
+TECHNICAL COMPETENCY:
+[3-4 sentences evaluating technical knowledge demonstrated. Reference specific answers, technologies mentioned, and problem-solving approaches. Note any gaps or inaccuracies.]
 
-    Keep sentences concise and professional. If information is missing, explicitly state that it was not gathered. Use the section scores and total score to justify the strengths, areas for improvement, and recommendations.
-    """
+BEHAVIORAL & SITUATIONAL:
+[2-3 sentences on how the candidate handled behavioral questions. Note examples they provided and their approach to challenges. Write "Not assessed" if no behavioral questions were asked.]
+
+COMMUNICATION QUALITY:
+[2 sentences on clarity, articulation, and professionalism of responses. Note any issues like off-topic answers, unclear explanations, or particularly strong communication.]
+
+--------------------------------------------------------------------------------
+SCORING BREAKDOWN
+--------------------------------------------------------------------------------
+Section                    | Score    | Responses
+---------------------------|----------|----------
+Introduction               | [X.X]/10 | [N] answers
+Resume/Background          | [X.X]/10 | [N] answers  
+Technical                  | [X.X]/10 | [N] answers
+Behavioral/Situational     | [X.X]/10 | [N] answers
+Wrap-Up                    | [X.X]/10 | [N] answers
+---------------------------|----------|----------
+OVERALL SCORE              | [X.X]/10 | [Total] answers
+
+[If any section was not assessed, write "Not assessed" for that row]
+
+--------------------------------------------------------------------------------
+KEY STRENGTHS
+--------------------------------------------------------------------------------
+1. [Specific strength with example from interview]
+2. [Specific strength with example from interview]
+3. [Additional strength if applicable]
+
+--------------------------------------------------------------------------------
+AREAS FOR DEVELOPMENT
+--------------------------------------------------------------------------------
+1. [Specific area needing improvement with reference to response]
+2. [Specific area needing improvement with reference to response]
+3. [Additional area if applicable]
+
+--------------------------------------------------------------------------------
+NOTABLE OBSERVATIONS
+--------------------------------------------------------------------------------
+[Any specific quotes, concerning responses, or exceptional answers worth highlighting. If candidate gave irrelevant answers, mention those specifically here.]
+
+--------------------------------------------------------------------------------
+RECOMMENDATION
+--------------------------------------------------------------------------------
+[Clear recommendation: Strong Hire / Hire / Consider with Reservations / Do Not Proceed]
+
+Rationale: [2-3 sentences explaining the recommendation based on the scores and analysis above.]
+
+--------------------------------------------------------------------------------
+SUGGESTED NEXT STEPS
+--------------------------------------------------------------------------------
+1. [Specific action item]
+2. [Specific action item]
+3. [Additional action if needed]
+
+================================================================================
+
+RULES:
+- Be specific and reference actual responses from the interview
+- If answers were irrelevant or off-topic, explicitly mention this as a concern
+- Base all assessments on the actual scores and content provided
+- Do NOT include any internal notes, thinking, or XML tags
+- Write in professional third-person tone
+- If data is missing for a section, clearly state "Not assessed" or "Data not collected" """
 
     try:
         # Get API key from environment
@@ -100,7 +191,7 @@ def generate_report(session):
                 
                 messages = [
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": transcript}
+                    {"role": "user", "content": f"Generate the interview report for this data. Output ONLY the report, nothing else:\n\n{transcript}"}
                 ]
                 
                 print(f"[Report] Sending request to Groq with model: qwen/qwen3-32b")
@@ -108,8 +199,8 @@ def generate_report(session):
                 completion = client.chat.completions.create(
                     model="qwen/qwen3-32b",
                     messages=messages,
-                    temperature=1,
-                    max_completion_tokens=800,
+                    temperature=0.3,  # Lower temperature for consistent, professional output
+                    max_completion_tokens=1000,
                     top_p=1,
                     stream=False,
                     stop=None
@@ -117,13 +208,16 @@ def generate_report(session):
                 
                 report_content = completion.choices[0].message.content.strip()
                 
-                print(f"[Report] Generated report length: {len(report_content)}")
+                # CRITICAL: Clean any think tags or internal reasoning from the output
+                report_content = clean_report_content(report_content)
+                
+                print(f"[Report] Generated report length after cleaning: {len(report_content)}")
                 
                 if not report_content:
                     print("ERROR: Empty report content from API")
                     return generate_basic_report(session, transcript)
                 
-                # Save the report to the database
+                # Save the cleaned report to the database
                 InterviewReport.objects.update_or_create(
                     session=session,
                     defaults={'content': report_content}

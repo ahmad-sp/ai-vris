@@ -1,99 +1,217 @@
 import os
 import json
+import re
 from groq import Groq
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 
+def extract_json_from_response(response_text):
+    """
+    Extract JSON from LLM response that may contain think tags or other content.
+    """
+    if not response_text:
+        return None
+    
+    # Remove <think>...</think> blocks (complete)
+    cleaned = re.sub(r'<think>.*?</think>', '', response_text, flags=re.DOTALL | re.IGNORECASE)
+    
+    # Remove incomplete <think> blocks (no closing tag - the model cut off)
+    cleaned = re.sub(r'<think>.*$', '', cleaned, flags=re.DOTALL | re.IGNORECASE)
+    
+    # Remove any other XML-like tags
+    cleaned = re.sub(r'<[^>]+>.*?</[^>]+>', '', cleaned, flags=re.DOTALL)
+    cleaned = re.sub(r'<[^>]+/?>', '', cleaned)
+    cleaned = cleaned.strip()
+    
+    # Try to find JSON with both relevance and score
+    json_patterns = [
+        r'\{\s*"relevance"\s*:\s*"[^"]+"\s*,\s*"score"\s*:\s*\d+\s*\}',
+        r'\{\s*"score"\s*:\s*\d+\s*,\s*"relevance"\s*:\s*"[^"]+"\s*\}',
+        r'\{[^{}]*"relevance"[^{}]*"score"[^{}]*\}',
+        r'\{[^{}]*"score"[^{}]*"relevance"[^{}]*\}',
+        r'\{[^{}]*\}',
+    ]
+    
+    for pattern in json_patterns:
+        match = re.search(pattern, cleaned, re.DOTALL | re.IGNORECASE)
+        if match:
+            try:
+                # Try to parse it
+                json.loads(match.group(0))
+                return match.group(0)
+            except:
+                continue
+    
+    # Also search in original text (in case think block wasn't properly closed)
+    for pattern in json_patterns:
+        match = re.search(pattern, response_text, re.DOTALL | re.IGNORECASE)
+        if match:
+            try:
+                json.loads(match.group(0))
+                return match.group(0)
+            except:
+                continue
+    
+    return None
+
+
+def extract_score_from_text(response_text):
+    """Try to extract score and relevance from unstructured text."""
+    text_lower = response_text.lower()
+    
+    # Determine relevance
+    relevance = "Relevant"  # Default to relevant
+    if 'irrelevant' in text_lower and 'not irrelevant' not in text_lower:
+        relevance = "Irrelevant"
+    elif 'partially relevant' in text_lower or 'partial' in text_lower:
+        relevance = "Partially Relevant"
+    
+    # Try to find score
+    score_patterns = [
+        r'score["\s:]+(\d+)',
+        r'(\d+)\s*/\s*10',
+        r'(\d+)\s*out of\s*10',
+        r'rating["\s:]+(\d+)',
+    ]
+    
+    for pattern in score_patterns:
+        match = re.search(pattern, text_lower)
+        if match:
+            score = int(match.group(1))
+            if 0 <= score <= 10:
+                return score, relevance
+    
+    return None, relevance
+
+
 def score_answer(question, answer):
     """
     Returns a tuple: (score:int, relevance:str)
+    Uses LLM to evaluate both relevance and quality of the answer.
     """
-    # Quick pre-check for obviously bad answers ONLY
+    # Only pre-check for empty/very short answers
     if not answer or len(answer.strip()) < 2:
         return 0, "Irrelevant"
     
-    # Check for filler-only answers (very strict check)
-    filler_words = ["um", "uh", "hmm"]  # Only check for pure filler, not legitimate answers
-    cleaned_answer = answer.strip().lower().replace(",", "").replace(".", "")
-    if cleaned_answer in filler_words and len(cleaned_answer.split()) == 1:
-        return 1, "Partially Relevant"  # More generous - give 1 point for attempting
+    # Check for single filler words only
+    filler_words = ["um", "uh", "hmm"]
+    cleaned_answer = answer.strip().lower().replace(",", "").replace(".", "").replace("!", "").replace("?", "")
+    if cleaned_answer in filler_words:
+        return 1, "Irrelevant"
     
     print(f"[Scoring] Scoring answer: '{answer[:50]}...' to question: '{question[:50]}...'")
 
-    system_prompt = """
-    You are a GENEROUS and SUPPORTIVE interview evaluator. Your role is to encourage candidates and recognize their efforts.
-    
-    Rate each answer based on:
-    1) Relevance — does the answer attempt to address the question? (Relevant / Partially Relevant / Irrelevant)
-    2) Score — integer 0-10:
-       - 0-1: Only for completely blank, nonsensical, or pure filler responses
-       - 2-3: Very brief but attempts to answer (e.g., "I don't know much about that")
-       - 4-5: Short answer that partially addresses the question
-       - 6-7: Decent answer that addresses the question adequately
-       - 8-9: Good answer with some detail, examples, or clarity
-       - 10: Exceptional, comprehensive, and insightful answer
+    # Simpler, more direct prompt
+    system_prompt = """You are an interview evaluator. Return ONLY a JSON object, nothing else.
 
-    LIBERAL SCORING GUIDELINES (BE GENEROUS):
-    - If the answer makes ANY attempt to address the question, mark it "Relevant" or "Partially Relevant"
-    - Even brief answers (1-2 sentences) should get at least 4-5 if they're on topic
-    - Answers with any specific details, examples, or personal experience should get 6-8
-    - Education, internships, projects, or work experience mentioned = automatic 7-8 minimum
-    - Only mark "Irrelevant" if the answer is COMPLETELY off-topic or just filler words
-    - Give the benefit of the doubt - if unsure, score higher
-    - Partial answers are better than no answers - reward attempts (minimum 3-4)
-    - Any answer showing thought or effort deserves at least 5-6
-    - Reserve 0-2 ONLY for truly empty, nonsensical, or pure filler responses
-    
-    IMPORTANT RULES:
-    - Default to scoring 6-7 for most reasonable answers
-    - Be lenient with brevity - short answers can still be good
-    - Reward any specificity or personal examples with 7-9
-    - Only give low scores (0-3) for truly poor responses
-    - When in doubt, score HIGHER not lower
-    - Recognize that candidates may be nervous - be supportive
+Evaluate:
+- relevance: "Relevant" (addresses question), "Partially Relevant" (somewhat), or "Irrelevant" (off-topic)
+- score: 0-10 (7-10=strong with details, 5-6=adequate, 3-4=weak, 0-2=irrelevant)
 
-    ONLY RETURN JSON:
-    {
-        "relevance": "Relevant/Partially Relevant/Irrelevant",
-        "score": 0-10
-    }
-    """
+Example output: {"relevance": "Relevant", "score": 8}
+
+Return ONLY the JSON object. No explanation."""
 
     try:
         client = Groq(api_key=GROQ_API_KEY)
         
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Question: {question}\nAnswer: {answer}"}
-        ]
+        # Try with llama model first (less likely to use think tags)
+        models_to_try = ["llama-3.3-70b-versatile", "qwen/qwen3-32b"]
         
-        print(f"[Scoring] Sending request to Groq with model: qwen/qwen3-32b")
+        for model in models_to_try:
+            try:
+                print(f"[Scoring] Trying model: {model}")
+                
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Q: {question}\nA: {answer}\n\nJSON:"}
+                ]
+                
+                completion = client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    temperature=0.1,
+                    max_completion_tokens=50,  # Very short - just need JSON
+                    top_p=1,
+                    stream=False,
+                    stop=None
+                )
+                
+                response_text = completion.choices[0].message.content.strip()
+                print(f"[Scoring] Raw API Response ({model}): {response_text[:200]}")
+                
+                # Try to extract JSON
+                json_str = extract_json_from_response(response_text)
+                
+                if json_str:
+                    print(f"[Scoring] Extracted JSON: {json_str}")
+                    result_json = json.loads(json_str)
+                    relevance = result_json.get("relevance", "Relevant")
+                    score = int(result_json.get("score", 6))
+                    score = max(0, min(10, score))
+                    
+                    # Enforce score consistency with relevance
+                    if relevance == "Irrelevant" and score > 2:
+                        score = 1
+                    elif relevance == "Relevant" and score < 5:
+                        score = 5
+                    
+                    print(f"[Scoring] Final Score: {score}, Relevance: {relevance}")
+                    return score, relevance
+                
+                # Try extracting from text
+                score, relevance = extract_score_from_text(response_text)
+                if score is not None:
+                    print(f"[Scoring] Extracted from text: Score={score}, Relevance={relevance}")
+                    return score, relevance
+                    
+            except Exception as model_error:
+                print(f"[Scoring] Model {model} failed: {model_error}")
+                continue
         
-        completion = client.chat.completions.create(
-            model="qwen/qwen3-32b",
-            messages=messages,
-            temperature=1,
-            max_completion_tokens=1024,
-            top_p=1,
-            stream=False,
-            stop=None
-        )
+        # All models failed - use smart fallback
+        print(f"[Scoring] All models failed, using smart fallback")
+        return smart_fallback_score(answer)
         
-        response_text = completion.choices[0].message.content.strip()
-        print(f"[Scoring] API Response: {response_text[:200]}...")
-        
-        result_json = json.loads(response_text)
-        relevance = result_json.get("relevance", "Irrelevant")
-        score = int(result_json.get("score", 0))
-        score = max(0, min(10, score))
-        
-        print(f"[Scoring] Final Score: {score}, Relevance: {relevance}")
-        return score, relevance
     except Exception as e:
-        print("Scoring LLM error:", str(e))
-        # More generous fallback - if there's an answer with substance, give benefit of doubt
-        if answer and len(answer.strip()) > 10:
-            print("[Scoring] LLM failed but answer has substance, giving benefit of doubt with score 5")
-            return 5, "Relevant"  # Give average score instead of 0
-        return 0, "Irrelevant"
+        print(f"[Scoring] LLM error: {str(e)}")
+        return smart_fallback_score(answer)
+
+
+def smart_fallback_score(answer):
+    """
+    Smart fallback scoring based on answer characteristics.
+    Used when LLM calls fail.
+    """
+    word_count = len(answer.split())
+    answer_lower = answer.lower()
+    
+    # Check for obvious off-topic indicators
+    off_topic_phrases = ["pizza", "food", "eat", "doctor", "hospital", "sick", "weather", "movie", "netflix"]
+    professional_phrases = ["project", "developed", "built", "worked", "experience", "team", "technology", 
+                           "python", "java", "machine learning", "data", "api", "software", "design"]
+    
+    off_topic_count = sum(1 for phrase in off_topic_phrases if phrase in answer_lower)
+    professional_count = sum(1 for phrase in professional_phrases if phrase in answer_lower)
+    
+    # If clearly off-topic
+    if off_topic_count > 2 and professional_count == 0:
+        return 1, "Irrelevant"
+    
+    # If has professional content
+    if professional_count > 0:
+        if word_count > 30:
+            return 7, "Relevant"
+        elif word_count > 15:
+            return 6, "Relevant"
+        else:
+            return 5, "Relevant"
+    
+    # Generic answer
+    if word_count > 20:
+        return 6, "Relevant"
+    elif word_count > 10:
+        return 5, "Partially Relevant"
+    else:
+        return 4, "Partially Relevant"
