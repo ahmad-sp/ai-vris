@@ -62,9 +62,16 @@ WSGI_APPLICATION = "vr_backend.wsgi.application"
 DATABASES = {
     "default": dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=600
+        conn_max_age=600,
+        ssl_require=True
     )
 }
+
+# Add SSL configuration for PostgreSQL on Render
+if 'postgres' in DATABASES['default']['ENGINE']:
+    DATABASES['default']['OPTIONS'] = {
+        'sslmode': 'require',
+    }
 
 # static & media (WhiteNoise for static)
 STATIC_URL = "/static/"

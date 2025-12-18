@@ -872,7 +872,7 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-  backendBaseUrl: http://127.0.0.1:8000
+  backendBaseUrl: https://ai-vris.onrender.com
   interviewPath: /api/interview/
   questionTimeoutSeconds: 30
   repeatTimeoutSeconds: 30

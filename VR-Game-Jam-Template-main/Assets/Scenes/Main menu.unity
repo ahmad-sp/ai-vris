@@ -13958,7 +13958,7 @@ MonoBehaviour:
   submitButton: {fileID: 1356112778840643110}
   cancelButton: {fileID: 0}
   startSceneName: InterviewRoom
-  backendBaseUrl: http://192.168.1.76:8000
+  backendBaseUrl: https://ai-vris.onrender.com
   createSessionPath: /api/interview/
 --- !u!224 &4430122739278385745
 RectTransform:
@@ -14463,7 +14463,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f14bd2254a906451a9ac239210bc81a9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  backendBaseUrl: http://192.168.1.76:8000
+  backendBaseUrl: https://ai-vris.onrender.com
   baseUrl: /api/
   sessionsEndpoint: /api/interview/sessions/
   reportBaseEndpoint: /api/reports
@@ -15021,7 +15021,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7d26807af07d9254baa558424dd75848, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EndInterviewButton
-  interviewManager: {fileID: 0}
 --- !u!222 &8802677250390593474
 CanvasRenderer:
   m_ObjectHideFlags: 0
