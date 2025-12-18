@@ -1,0 +1,13 @@
+django
+djangorestframework
+django-cors-headers
+python-dotenv
+gunicorn
+uvicorn
+psycopg2-binary
+dj-database-url
+whitenoise
+PyPDF2
+requests
+google-generativeai
+google-cloud-speech
