@@ -4,6 +4,7 @@ using UnityEngine.Events;
 using UnityEngine.Networking;
 using TMPro;
 using UnityEngine.UI;
+using Unity.Burst.CompilerServices;
 
 public class InterviewSessionManager : MonoBehaviour
 {

@@ -2,8 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
-public class GazeDwellButton : MonoBehaviour,
-    IPointerEnterHandler, IPointerExitHandler
+public class GazeDwellButton : MonoBehaviour
 {
     public float dwellTime = 2.0f; // seconds to activate
 
@@ -31,14 +30,14 @@ public class GazeDwellButton : MonoBehaviour,
         }
     }
 
-    public void OnPointerEnter(PointerEventData eventData)
+    public void OnPointerEnter()
     {
         gazing = true;
         Debug.Log("Gazed at button: " + gameObject.name);
         timer = 0f;
     }
 
-    public void OnPointerExit(PointerEventData eventData)
+    public void OnPointerExit()
     {
         gazing = false;
         timer = 0f;

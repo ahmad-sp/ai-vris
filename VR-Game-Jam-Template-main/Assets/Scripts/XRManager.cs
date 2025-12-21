@@ -8,6 +8,7 @@ using Google.XR.Cardboard;
 public class XRManager : MonoBehaviour
 {
     XRDisplaySubsystem display;
+    public bool isStereo = true;
 
     IEnumerator Start()
     {
@@ -22,7 +23,7 @@ public class XRManager : MonoBehaviour
         display = displays[0];
 
         // Start in MONO
-        display.Stop();
+        if(!isStereo) display.Stop();
     }
 
     void Update()
@@ -44,12 +45,14 @@ public class XRManager : MonoBehaviour
 
     public void SwitchToStereo()
     {
+        isStereo = true;
         if (!display.running)
             display.Start();
     }
 
     public void SwitchToMono()
     {
+        isStereo = false;
         if (display.running)
             display.Stop();
     }
