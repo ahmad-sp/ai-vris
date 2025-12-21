@@ -1,6 +1,8 @@
 import os
 import time
 import requests
+from pathlib import Path
+from groq import Groq
 from dotenv import load_dotenv
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -18,9 +20,8 @@ from .services.resume_parser_service import process_resume_upload
 
 load_dotenv()
 
-ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
-VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+client = Groq(api_key=GROQ_API_KEY)
 
 DEFAULT_SECTION_FLOW = [
     "Greeting", "Introduction", "Resume Questions",
@@ -38,29 +39,40 @@ MAX_QUESTIONS = {
 
 
 def text_to_speech(text, request_obj=None):
-    """Convert interviewer text to speech using ElevenLabs."""
-    if not ELEVENLABS_API_KEY or not VOICE_ID:
-        print("⚠️ Missing ElevenLabs API or Voice ID.")
+    """Convert interviewer text to speech using Groq PlayAI."""
+    if not GROQ_API_KEY:
+        print("⚠️ Missing Groq API Key.")
         return None
 
     try:
-        url = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}"
-        headers = {"xi-api-key": ELEVENLABS_API_KEY, "Content-Type": "application/json"}
-        payload = {"text": text, "voice_settings": {"stability": 0.6, "similarity_boost": 0.8}}
-
-        response = requests.post(url, headers=headers, json=payload, timeout=40)
-        response.raise_for_status()
+        response = client.audio.speech.create(
+            model="playai-tts",
+            voice="Chip-PlayAI",
+            response_format="mp3",
+            input=text,
+        )
 
         filename = f"reply_{int(time.time())}.mp3"
         filepath = settings.MEDIA_ROOT / filename
+        
+        # Write binary content to file
         with open(filepath, "wb") as f:
-            f.write(response.content)
+            if hasattr(response, "content"):
+                f.write(response.content)
+            elif hasattr(response, "read"):
+                f.write(response.read())
+            elif hasattr(response, "iter_bytes"):
+                for chunk in response.iter_bytes():
+                    f.write(chunk)
+            else:
+                print(f"🛑 Groq TTS Error: Unknown response type {type(response)}")
+                return None
 
         if request_obj:
             return request_obj.build_absolute_uri(settings.MEDIA_URL + filename)
         return filename
     except Exception as e:
-        print("🛑 ElevenLabs Error:", e)
+        print("🛑 Groq TTS Error:", e)
         return None
 
 
@@ -284,7 +296,7 @@ class AudioToTextView(APIView):
 
         try:
             # Save the audio file temporarily
-            temp_audio_path = os.path.join(settings.MEDIA_ROOT, 'temp_audio.wav')
+            temp_audio_path = os.path.join(settings.MEDIA_ROOT, 'temp_audio.mp3')
             with open(temp_audio_path, 'wb+') as destination:
                 for chunk in audio_data.chunks():
                     destination.write(chunk)
