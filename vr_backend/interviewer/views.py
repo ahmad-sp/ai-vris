@@ -34,7 +34,7 @@ MAX_QUESTIONS = {
     "Resume Questions": 5,
     "Technical": 5,
     "Behavioral/Situational": 3,
-    "Wrap-Up": 1  # Only one closing message
+    "Wrap-Up": 2  # Only two closing message
 }
 
 
