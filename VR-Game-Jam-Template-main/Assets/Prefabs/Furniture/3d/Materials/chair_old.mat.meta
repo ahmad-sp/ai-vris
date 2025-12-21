@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: b888930699f99a94d93d5be141b83068
+timeCreated: 1507583276
+licenseType: Store
+NativeFormatImporter:
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 104874
+  packageName: Untitled
+  packageVersion: 1.0
+  assetPath: Assets/Furniture/3d/Materials/chair_old.mat
+  uploadId: 212176

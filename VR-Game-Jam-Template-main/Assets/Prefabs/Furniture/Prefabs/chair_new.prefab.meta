@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 36d283747c2ae07499c4c1734767be03
+timeCreated: 1510581180
+licenseType: Store
+NativeFormatImporter:
+  mainObjectFileID: 100100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 104874
+  packageName: Untitled
+  packageVersion: 1.0
+  assetPath: Assets/Furniture/Prefabs/chair_new.prefab
+  uploadId: 212176
