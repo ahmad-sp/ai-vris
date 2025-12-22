@@ -53,7 +53,9 @@ def text_to_speech(text, request_obj=None):
         )
 
         filename = f"reply_{int(time.time())}.mp3"
-        filepath = settings.MEDIA_ROOT / filename
+        media_root = Path(settings.MEDIA_ROOT)
+        media_root.mkdir(parents=True, exist_ok=True)
+        filepath = media_root / filename
         
         # Write binary content to file
         with open(filepath, "wb") as f:
