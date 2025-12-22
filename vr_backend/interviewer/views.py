@@ -1,7 +1,4 @@
 import os
-import time
-import requests
-from pathlib import Path
 from groq import Groq
 from dotenv import load_dotenv
 from rest_framework.views import APIView
@@ -9,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.conf import settings
 from django.http import HttpResponse
+from django.urls import reverse
 
 from .models import InterviewSession, InterviewResponse, ResumeUpload, InterviewReport
 from .services.llm_service import generate_interviewer_text
@@ -38,11 +36,14 @@ MAX_QUESTIONS = {
 }
 
 
-def text_to_speech(text, request_obj=None):
-    """Convert interviewer text to speech using Groq PlayAI."""
+class TTSGenerationError(Exception):
+    """Raised when text-to-speech generation fails."""
+
+
+def generate_tts_bytes(text: str) -> bytes:
+    """Convert interviewer text to speech and return raw bytes without saving to disk."""
     if not GROQ_API_KEY:
-        print("⚠️ Missing Groq API Key.")
-        return None
+        raise TTSGenerationError("Missing Groq API Key.")
 
     try:
         response = client.audio.speech.create(
@@ -52,30 +53,23 @@ def text_to_speech(text, request_obj=None):
             input=text,
         )
 
-        filename = f"reply_{int(time.time())}.mp3"
-        media_root = Path(settings.MEDIA_ROOT)
-        media_root.mkdir(parents=True, exist_ok=True)
-        filepath = media_root / filename
-        
-        # Write binary content to file
-        with open(filepath, "wb") as f:
-            if hasattr(response, "content"):
-                f.write(response.content)
-            elif hasattr(response, "read"):
-                f.write(response.read())
-            elif hasattr(response, "iter_bytes"):
-                for chunk in response.iter_bytes():
-                    f.write(chunk)
-            else:
-                print(f"🛑 Groq TTS Error: Unknown response type {type(response)}")
-                return None
+        if hasattr(response, "iter_bytes"):
+            return b"".join(chunk for chunk in response.iter_bytes())
+        if hasattr(response, "content"):
+            return response.content
+        if hasattr(response, "read"):
+            return response.read()
 
-        if request_obj:
-            return request_obj.build_absolute_uri(settings.MEDIA_URL + filename)
-        return filename
-    except Exception as e:
-        print("🛑 Groq TTS Error:", e)
-        return None
+        raise TTSGenerationError(f"Unknown Groq response type: {type(response)}")
+    except Exception as exc:
+        raise TTSGenerationError(f"Groq TTS generation failed: {exc}") from exc
+
+
+def build_audio_stream_url(response_obj, request_obj=None):
+    path = reverse("interview-response-audio", args=[response_obj.id])
+    if request_obj:
+        return request_obj.build_absolute_uri(path)
+    return path
 
 
 class InterviewStep(APIView):
@@ -91,7 +85,7 @@ class InterviewStep(APIView):
         answer = request.data.get("answer")
 
         try:
-            # 🟢 Load or create session
+            # Load or create session
             if session_id:
                 session = InterviewSession.objects.get(id=session_id)
             else:
@@ -112,7 +106,7 @@ class InterviewStep(APIView):
             asked_questions = session.responses.filter(step=current_step).count()
             max_questions = MAX_QUESTIONS.get(current_step, 3)
 
-            # 💬 Save last answer (if any)
+            # Save last answer (if any)
             if answer:
                 last_response = session.responses.last()
                 if last_response:
@@ -122,7 +116,7 @@ class InterviewStep(APIView):
                     last_response.relevance = relevance
                     last_response.save()
 
-            # 🧱 Handle completion early
+            # Handle completion early
             if session.completed:
                 return Response({
                     "session_id": session.id,
@@ -134,7 +128,7 @@ class InterviewStep(APIView):
                     "report_url": request.build_absolute_uri(f"/api/reports/{session.id}/"),
                 })
 
-            # 🧠 Generate interviewer text dynamically
+            # Generate interviewer text dynamically
             # Refresh session to ensure we have latest data (especially resume)
             session.refresh_from_db()
             resume_summary = None
@@ -148,17 +142,22 @@ class InterviewStep(APIView):
             except ResumeUpload.DoesNotExist:
                 resume_summary = None
                 if current_step == "Resume Questions":
-                    print(f"[Interview] ⚠️ Resume Questions step but no resume found for session {session.id}")
+                    print(f"[Interview] Resume Questions step but no resume found for session {session.id}")
             
             print(f"[Interview] Generating question for step '{current_step}', has_resume_summary={resume_summary is not None}")
             interviewer_text = generate_interviewer_text(session.role, current_step, answer, resume_summary)
 
-            # 🚪 If Exit or Wrap-Up step, close interview gracefully
+            # If Exit or Wrap-Up step, close interview gracefully
             if current_step in ["Wrap-Up", "Exit"]:
                 interviewer_text = generate_interviewer_text(session.role, "Exit")
                 session.completed = True
                 session.save()
-                audio_url = text_to_speech(interviewer_text, request_obj=request)
+                exit_response = InterviewResponse.objects.create(
+                    session=session,
+                    step="Exit",
+                    question=interviewer_text,
+                )
+                audio_url = build_audio_stream_url(exit_response, request)
 
                 return Response({
                     "session_id": session.id,
@@ -170,11 +169,15 @@ class InterviewStep(APIView):
                     "report_url": request.build_absolute_uri(f"/api/reports/{session.id}/"),
                 })
 
-            # 🗣️ Store interviewer question and convert to speech
-            InterviewResponse.objects.create(session=session, step=current_step, question=interviewer_text)
-            audio_url = text_to_speech(interviewer_text, request_obj=request)
+            # Store interviewer question and convert to speech
+            interview_response = InterviewResponse.objects.create(
+                session=session,
+                step=current_step,
+                question=interviewer_text,
+            )
+            audio_url = build_audio_stream_url(interview_response, request)
 
-            # 🔁 Move to next step if section done
+            # Move to next step if section done
             if asked_questions + 1 >= max_questions:  # If next question would exceed max
                 # Refresh session from database to ensure we have latest resume data
                 session.refresh_from_db()
@@ -189,7 +192,7 @@ class InterviewStep(APIView):
                 asked_questions += 1
                 session.save()
 
-            # 🧾 Calculate remaining
+            # Calculate remaining
             remaining_sections, remaining_questions = get_remaining(session)
             report_url = None
             if session.completed:
@@ -208,7 +211,7 @@ class InterviewStep(APIView):
         except InterviewSession.DoesNotExist:
             return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            print("🔥 Internal Error:", str(e))
+            print(" Internal Error:", str(e))
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -430,7 +433,7 @@ class ReportsList(APIView):
 
 
 class ReportDetail(APIView):
-    """GET /api/reports/{session_id}/ - Get detailed report for a specific session"""
+    """GET /api/reports/<session_id>/ - Detailed report for a session"""
     def get(self, request, session_id):
         try:
             session = InterviewSession.objects.get(id=session_id)
@@ -458,7 +461,27 @@ class ReportDetail(APIView):
             })
             
         except InterviewSession.DoesNotExist:
-            return Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "No report available"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            print(f"Error fetching report detail: {str(e)}")
+            print(f"Error generating report detail: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class InterviewResponseAudioView(APIView):
+    """Stream TTS audio for a stored InterviewResponse question."""
+
+    def get(self, request, response_id: int):
+        try:
+            response_obj = InterviewResponse.objects.get(id=response_id)
+        except InterviewResponse.DoesNotExist:
+            return Response({"error": "Interview response not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            audio_bytes = generate_tts_bytes(response_obj.question)
+        except TTSGenerationError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        http_response = HttpResponse(audio_bytes, content_type="audio/mpeg")
+        http_response["Content-Disposition"] = f"inline; filename=interview_response_{response_id}.mp3"
+        http_response["Cache-Control"] = "no-store"
+        return http_response
