@@ -1,4 +1,6 @@
+using System;
 using System.Collections;
+using System.IO;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Networking;
@@ -55,6 +57,7 @@ public class InterviewSessionManager : MonoBehaviour
     private bool hasReceivedAnswer = false; // Track if answer was received for current question
     private string currentQuestion = ""; // Store current question for repeat
     private string currentAudioUrl = ""; // Store current audio URL for repeat
+    private string currentAudioBase64 = ""; // Store current audio payload for repeat
     private bool isQuestionRepeated = false; // Track if question has been repeated
 
     private CanvasGroup indicatorCanvasGroup;
@@ -129,6 +132,7 @@ public class InterviewSessionManager : MonoBehaviour
         {
             string storedQuestion = PlayerPrefs.GetString("initial_question", "");
             string storedAudioUrl = PlayerPrefs.GetString("initial_audio_url", "");
+            string storedAudioBase64 = PlayerPrefs.GetString("initial_audio_base64", "");
             
             if (!string.IsNullOrEmpty(storedQuestion))
             {
@@ -137,11 +141,12 @@ public class InterviewSessionManager : MonoBehaviour
                 PlayerPrefs.DeleteKey("has_initial_prompt");
                 PlayerPrefs.DeleteKey("initial_question");
                 PlayerPrefs.DeleteKey("initial_audio_url");
+                PlayerPrefs.DeleteKey("initial_audio_base64");
                 PlayerPrefs.Save();
                 
                 // Use the stored prompt
                 initialPromptHandled = true;
-                StartCoroutine(HandleInitialPrompt(storedQuestion, storedAudioUrl));
+                StartCoroutine(HandleInitialPrompt(storedQuestion, storedAudioUrl, storedAudioBase64));
                 return;
             }
         }
@@ -164,18 +169,24 @@ public class InterviewSessionManager : MonoBehaviour
     // Public entry to handle the very first prompt from CandidateInfoForm
     public void StartWithPrompt(string question, string audioUrl)
     {
-        Debug.Log($"[InterviewSessionManager] StartWithPrompt called with question: {question?.Substring(0, Mathf.Min(50, question?.Length ?? 0))}..., audioUrl: {audioUrl}");
-        initialPromptHandled = true; // Mark that we've handled the initial prompt
-        StartCoroutine(HandleInitialPrompt(question, audioUrl));
+        StartWithPrompt(question, audioUrl, null);
     }
 
-    private IEnumerator HandleInitialPrompt(string question, string audioUrl)
+    public void StartWithPrompt(string question, string audioUrl, string audioBase64)
+    {
+        Debug.Log($"[InterviewSessionManager] StartWithPrompt called with question: {question?.Substring(0, Mathf.Min(50, question?.Length ?? 0))}..., audioUrl: {audioUrl}, audioBase64_len: {(string.IsNullOrEmpty(audioBase64) ? 0 : audioBase64.Length)}");
+        initialPromptHandled = true; // Mark that we've handled the initial prompt
+        StartCoroutine(HandleInitialPrompt(question, audioUrl, audioBase64));
+    }
+
+    private IEnumerator HandleInitialPrompt(string question, string audioUrl, string audioBase64)
     {
         Debug.Log($"[InterviewSessionManager] HandleInitialPrompt - Setting question text and playing audio");
         
         // Store current question and audio for potential repeat
         currentQuestion = question;
         currentAudioUrl = audioUrl;
+        currentAudioBase64 = audioBase64;
         
         if (questionText != null && !string.IsNullOrEmpty(question))
         {
@@ -190,14 +201,18 @@ public class InterviewSessionManager : MonoBehaviour
         if (onQuestionReceived != null && !string.IsNullOrEmpty(question))
             onQuestionReceived.Invoke(question);
 
-        if (!string.IsNullOrEmpty(audioUrl) && questionAudioSource != null)
+        if (!string.IsNullOrEmpty(audioBase64) && questionAudioSource != null)
+        {
+            yield return StartCoroutine(PlayAudioFromBase64(audioBase64));
+        }
+        else if (!string.IsNullOrEmpty(audioUrl) && questionAudioSource != null)
         {
             Debug.Log($"[InterviewSessionManager] Downloading and playing audio from: {audioUrl}");
             yield return StartCoroutine(DownloadAndPlay(audioUrl));
         }
         else
         {
-            Debug.LogWarning($"[InterviewSessionManager] Audio URL or AudioSource is null. audioUrl={!string.IsNullOrEmpty(audioUrl)}, audioSource={questionAudioSource != null}");
+            Debug.LogWarning($"[InterviewSessionManager] No audio payload to play or AudioSource missing. audioBase64={!string.IsNullOrEmpty(audioBase64)}, audioUrl={!string.IsNullOrEmpty(audioUrl)}, audioSource={questionAudioSource != null}");
         }
 
         if (vad != null)
@@ -290,11 +305,16 @@ public class InterviewSessionManager : MonoBehaviour
             // Store current question and audio for potential repeat
             currentQuestion = response.question;
             currentAudioUrl = response.audio_url;
+            currentAudioBase64 = response.audio_base64;
             
             if (questionText != null) questionText.text = response.question;
             if (onQuestionReceived != null) onQuestionReceived.Invoke(response.question);
 
-            if (!string.IsNullOrEmpty(response.audio_url) && questionAudioSource != null)
+            if (!string.IsNullOrEmpty(response.audio_base64) && questionAudioSource != null)
+            {
+                yield return StartCoroutine(PlayAudioFromBase64(response.audio_base64));
+            }
+            else if (!string.IsNullOrEmpty(response.audio_url) && questionAudioSource != null)
             {
                 yield return StartCoroutine(DownloadAndPlay(response.audio_url));
             }
@@ -318,6 +338,7 @@ public class InterviewSessionManager : MonoBehaviour
         public string step;
         public string question;
         public string audio_url;
+        public string audio_base64;
         public int remaining_sections;
         public int remaining_questions;
         public string report_url;
@@ -388,7 +409,7 @@ public class InterviewSessionManager : MonoBehaviour
             try
             {
                 var resp = JsonUtility.FromJson<InitialQuestionResponse>(req.downloadHandler.text);
-                StartCoroutine(HandleInitialPrompt(resp.question, resp.audio_url));
+                StartCoroutine(HandleInitialPrompt(resp.question, resp.audio_url, resp.audio_base64));
             }
             catch
             {
@@ -447,6 +468,7 @@ public class InterviewSessionManager : MonoBehaviour
         // Store current question and audio for potential repeat
         currentQuestion = resp.question;
         currentAudioUrl = resp.audio_url;
+        currentAudioBase64 = resp.audio_base64;
 
         // Display and phonemes
         if (questionText != null && !string.IsNullOrEmpty(resp.question))
@@ -455,7 +477,11 @@ public class InterviewSessionManager : MonoBehaviour
             onQuestionReceived.Invoke(resp.question);
 
         // Play audio then restart VAD
-        if (!string.IsNullOrEmpty(resp.audio_url) && questionAudioSource != null)
+        if (!string.IsNullOrEmpty(resp.audio_base64) && questionAudioSource != null)
+        {
+            yield return StartCoroutine(PlayAudioFromBase64(resp.audio_base64));
+        }
+        else if (!string.IsNullOrEmpty(resp.audio_url) && questionAudioSource != null)
         {
             yield return StartCoroutine(DownloadAndPlay(resp.audio_url));
         }
@@ -565,7 +591,11 @@ public class InterviewSessionManager : MonoBehaviour
             onQuestionReceived.Invoke(currentQuestion);
         
         // Play the audio again
-        if (!string.IsNullOrEmpty(currentAudioUrl) && questionAudioSource != null)
+        if (!string.IsNullOrEmpty(currentAudioBase64) && questionAudioSource != null)
+        {
+            yield return StartCoroutine(PlayAudioFromBase64(currentAudioBase64));
+        }
+        else if (!string.IsNullOrEmpty(currentAudioUrl) && questionAudioSource != null)
         {
             yield return StartCoroutine(DownloadAndPlay(currentAudioUrl));
         }
@@ -695,6 +725,80 @@ public class InterviewSessionManager : MonoBehaviour
                 while (questionAudioSource.isPlaying)
                     yield return null;
             }
+        }
+    }
+
+    private IEnumerator PlayAudioFromBase64(string audioBase64)
+    {
+        if (string.IsNullOrEmpty(audioBase64))
+        {
+            Debug.LogWarning("[Interview] audio_base64 was empty, nothing to play.");
+            yield break;
+        }
+
+        byte[] mp3Bytes = null;
+        try
+        {
+            mp3Bytes = Convert.FromBase64String(audioBase64);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("[Interview] Failed to decode audio_base64: " + ex.Message);
+            yield break;
+        }
+
+        Debug.Log($"[Interview] Audio received (base64). bytes={mp3Bytes.Length}");
+
+        string filePath = Path.Combine(Application.persistentDataPath, $"tts_{DateTime.UtcNow.Ticks}.mp3");
+        try
+        {
+            File.WriteAllBytes(filePath, mp3Bytes);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("[Interview] Failed to write mp3 to persistentDataPath: " + ex.Message);
+            yield break;
+        }
+
+        string fileUri;
+        try
+        {
+            fileUri = new Uri(filePath).AbsoluteUri;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("[Interview] Failed to build file URI: " + ex.Message);
+            yield break;
+        }
+
+        using (var req = UnityWebRequestMultimedia.GetAudioClip(fileUri, AudioType.MPEG))
+        {
+            yield return req.SendWebRequest();
+            if (req.result != UnityWebRequest.Result.Success)
+            {
+                Debug.LogError("[Interview] Failed to load local TTS mp3: " + req.error + " uri=" + fileUri);
+                yield break;
+            }
+
+            var clip = DownloadHandlerAudioClip.GetContent(req);
+            if (clip == null)
+            {
+                Debug.LogError("[Interview] Loaded audio clip was null.");
+                yield break;
+            }
+
+            Debug.Log($"[Interview] Audio clip loaded. samples={clip.samples} length={clip.length:F2}s channels={clip.channels}");
+            questionAudioSource.clip = clip;
+            questionAudioSource.Play();
+
+            // Trigger lip sync
+            if (phenomesOutput != null && !string.IsNullOrEmpty(currentQuestion))
+            {
+                phenomesOutput.PlaySentence(currentQuestion);
+            }
+
+            while (questionAudioSource.isPlaying)
+                yield return null;
         }
     }
 
@@ -869,6 +973,7 @@ public class InterviewSessionManager : MonoBehaviour
     {
         public string question;
         public string audio_url;
+        public string audio_base64;
     }
 
     private IEnumerator FetchAndDisplayReport(string url)
@@ -1081,6 +1186,7 @@ public class InterviewSessionManager : MonoBehaviour
         public string step;
         public string question;
         public string audio_url;
+        public string audio_base64;
         public int remaining_sections;
         public int remaining_questions;
         public string report_url;

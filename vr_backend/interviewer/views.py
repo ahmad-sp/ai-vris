@@ -1,5 +1,6 @@
 import os
 import time
+import base64
 import requests
 from pathlib import Path
 from groq import Groq
@@ -38,8 +39,22 @@ MAX_QUESTIONS = {
 }
 
 
-def text_to_speech(text, request_obj=None):
-    """Convert interviewer text to speech using Groq PlayAI."""
+def _groq_tts_response_to_bytes(response):
+    if hasattr(response, "content"):
+        return response.content
+    if hasattr(response, "read"):
+        return response.read()
+    if hasattr(response, "iter_bytes"):
+        chunks = []
+        for chunk in response.iter_bytes():
+            chunks.append(chunk)
+        return b"".join(chunks)
+    print(f"🛑 Groq TTS Error: Unknown response type {type(response)}")
+    return None
+
+
+def text_to_speech_bytes(text):
+    """Convert interviewer text to speech using Groq PlayAI and return raw MP3 bytes."""
     if not GROQ_API_KEY:
         print("⚠️ Missing Groq API Key.")
         return None
@@ -51,26 +66,7 @@ def text_to_speech(text, request_obj=None):
             response_format="mp3",
             input=text,
         )
-
-        filename = f"reply_{int(time.time())}.mp3"
-        filepath = settings.MEDIA_ROOT / filename
-        
-        # Write binary content to file
-        with open(filepath, "wb") as f:
-            if hasattr(response, "content"):
-                f.write(response.content)
-            elif hasattr(response, "read"):
-                f.write(response.read())
-            elif hasattr(response, "iter_bytes"):
-                for chunk in response.iter_bytes():
-                    f.write(chunk)
-            else:
-                print(f"🛑 Groq TTS Error: Unknown response type {type(response)}")
-                return None
-
-        if request_obj:
-            return request_obj.build_absolute_uri(settings.MEDIA_URL + filename)
-        return filename
+        return _groq_tts_response_to_bytes(response)
     except Exception as e:
         print("🛑 Groq TTS Error:", e)
         return None
@@ -127,6 +123,7 @@ class InterviewStep(APIView):
                     "step": "Completed",
                     "question": "Interview already completed.",
                     "audio_url": None,
+                    "audio_base64": None,
                     "remaining_sections": 0,
                     "remaining_questions": 0,
                     "report_url": request.build_absolute_uri(f"/api/reports/{session.id}/"),
@@ -166,13 +163,15 @@ class InterviewStep(APIView):
                 )
                 session.completed = True
                 session.save()
-                audio_url = text_to_speech(interviewer_text, request_obj=request)
+                audio_bytes = text_to_speech_bytes(interviewer_text)
+                audio_base64 = base64.b64encode(audio_bytes).decode("ascii") if audio_bytes else None
 
                 return Response({
                     "session_id": session.id,
                     "step": "Exit",
                     "question": interviewer_text,
-                    "audio_url": audio_url,
+                    "audio_url": None,
+                    "audio_base64": audio_base64,
                     "remaining_sections": 0,
                     "remaining_questions": 0,
                     "report_url": request.build_absolute_uri(f"/api/reports/{session.id}/"),
@@ -180,7 +179,8 @@ class InterviewStep(APIView):
 
             # 🗣️ Store interviewer question and convert to speech
             InterviewResponse.objects.create(session=session, step=current_step, question=interviewer_text)
-            audio_url = text_to_speech(interviewer_text, request_obj=request)
+            audio_bytes = text_to_speech_bytes(interviewer_text)
+            audio_base64 = base64.b64encode(audio_bytes).decode("ascii") if audio_bytes else None
 
             # 🔁 Move to next step if section done
             if asked_questions + 1 >= max_questions:  # If next question would exceed max
@@ -207,7 +207,8 @@ class InterviewStep(APIView):
                 "session_id": session.id,
                 "step": session.current_step,
                 "question": interviewer_text,
-                "audio_url": audio_url,
+                "audio_url": None,
+                "audio_base64": audio_base64,
                 "remaining_sections": remaining_sections,
                 "remaining_questions": remaining_questions,
                 "report_url": report_url,

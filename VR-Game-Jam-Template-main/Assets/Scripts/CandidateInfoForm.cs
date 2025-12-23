@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -286,6 +288,7 @@ public class CandidateInfoForm : MonoBehaviour
         public string step;
         public string question;
         public string audio_url;
+        public string audio_base64;
         public int remaining_sections;
         public int remaining_questions;
         public string report_url;
@@ -425,6 +428,10 @@ public class CandidateInfoForm : MonoBehaviour
         {
             PlayerPrefs.SetString("initial_audio_url", resp.audio_url);
         }
+        if (!string.IsNullOrEmpty(resp.audio_base64))
+        {
+            PlayerPrefs.SetString("initial_audio_base64", resp.audio_base64);
+        }
         PlayerPrefs.SetInt("has_initial_prompt", 1);
         PlayerPrefs.Save();
         Debug.Log($"[CandidateInfoForm] Stored initial prompt in PlayerPrefs. Question: {resp.question?.Substring(0, Mathf.Min(50, resp.question?.Length ?? 0))}...");
@@ -432,7 +439,7 @@ public class CandidateInfoForm : MonoBehaviour
         // If a loop manager exists, let it handle the initial prompt + VAD
         if (interviewManager != null)
         {
-            interviewManager.StartWithPrompt(resp.question, resp.audio_url);
+            interviewManager.StartWithPrompt(resp.question, resp.audio_url, resp.audio_base64);
         }
         else
         {
@@ -476,7 +483,11 @@ public class CandidateInfoForm : MonoBehaviour
         }
 
         // Play audio if available, then start listening
-        if (!string.IsNullOrEmpty(resp.audio_url) && questionAudioSource != null)
+        if (!string.IsNullOrEmpty(resp.audio_base64) && questionAudioSource != null)
+        {
+            yield return PlayAudioFromBase64(resp.audio_base64);
+        }
+        else if (!string.IsNullOrEmpty(resp.audio_url) && questionAudioSource != null)
         {
             yield return DownloadAndPlay(resp.audio_url);
         }
@@ -499,6 +510,73 @@ public class CandidateInfoForm : MonoBehaviour
             questionAudioSource.clip = clip;
             questionAudioSource.Play();
             // Wait until playback ends
+            while (questionAudioSource.isPlaying)
+                yield return null;
+        }
+    }
+
+    private System.Collections.IEnumerator PlayAudioFromBase64(string audioBase64)
+    {
+        if (string.IsNullOrEmpty(audioBase64))
+        {
+            Debug.LogWarning("[CandidateInfoForm] audio_base64 was empty, nothing to play.");
+            yield break;
+        }
+
+        byte[] mp3Bytes = null;
+        try
+        {
+            mp3Bytes = Convert.FromBase64String(audioBase64);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("[CandidateInfoForm] Failed to decode audio_base64: " + ex.Message);
+            yield break;
+        }
+
+        Debug.Log($"[CandidateInfoForm] Audio received (base64). bytes={mp3Bytes.Length}");
+
+        string filePath = Path.Combine(Application.persistentDataPath, $"tts_{DateTime.UtcNow.Ticks}.mp3");
+        try
+        {
+            File.WriteAllBytes(filePath, mp3Bytes);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("[CandidateInfoForm] Failed to write mp3 to persistentDataPath: " + ex.Message);
+            yield break;
+        }
+
+        string fileUri;
+        try
+        {
+            fileUri = new Uri(filePath).AbsoluteUri;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("[CandidateInfoForm] Failed to build file URI: " + ex.Message);
+            yield break;
+        }
+
+        using (var req = UnityWebRequestMultimedia.GetAudioClip(fileUri, AudioType.MPEG))
+        {
+            yield return req.SendWebRequest();
+            if (req.result != UnityWebRequest.Result.Success)
+            {
+                Debug.LogError("[CandidateInfoForm] Failed to load local TTS mp3: " + req.error + " uri=" + fileUri);
+                yield break;
+            }
+
+            var clip = DownloadHandlerAudioClip.GetContent(req);
+            if (clip == null)
+            {
+                Debug.LogError("[CandidateInfoForm] Loaded audio clip was null.");
+                yield break;
+            }
+
+            Debug.Log($"[CandidateInfoForm] Audio clip loaded. samples={clip.samples} length={clip.length:F2}s channels={clip.channels}");
+            questionAudioSource.clip = clip;
+            questionAudioSource.Play();
             while (questionAudioSource.isPlaying)
                 yield return null;
         }
