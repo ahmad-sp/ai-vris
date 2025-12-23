@@ -1,6 +1,9 @@
 import os
 <<<<<<< HEAD
+<<<<<<< HEAD
 import base64
+=======
+>>>>>>> parent of 7feebfe (name mentioned)
 =======
 >>>>>>> parent of 7feebfe (name mentioned)
 from groq import Groq
@@ -13,6 +16,9 @@ from django.conf import settings
 =======
 from django.http import HttpResponse
 from django.urls import reverse
+<<<<<<< HEAD
+>>>>>>> parent of 7feebfe (name mentioned)
+=======
 >>>>>>> parent of 7feebfe (name mentioned)
 
 from .models import InterviewSession, InterviewResponse, ResumeUpload, InterviewReport
@@ -44,15 +50,21 @@ MAX_QUESTIONS = {
 
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 def text_to_speech(text, request_obj=None):
     """Convert interviewer text to speech using Groq PlayAI and return base64 payload."""
 =======
+=======
+>>>>>>> parent of 7feebfe (name mentioned)
 class TTSGenerationError(Exception):
     """Raised when text-to-speech generation fails."""
 
 
 def generate_tts_bytes(text: str) -> bytes:
     """Convert interviewer text to speech and return raw bytes without saving to disk."""
+<<<<<<< HEAD
+>>>>>>> parent of 7feebfe (name mentioned)
+=======
 >>>>>>> parent of 7feebfe (name mentioned)
     if not GROQ_API_KEY:
         raise TTSGenerationError("Missing Groq API Key.")
@@ -65,6 +77,7 @@ def generate_tts_bytes(text: str) -> bytes:
             input=text,
         )
 
+<<<<<<< HEAD
 <<<<<<< HEAD
         audio_bytes = None
         if hasattr(response, "content"):
@@ -94,6 +107,15 @@ def generate_tts_bytes(text: str) -> bytes:
         if hasattr(response, "read"):
             return response.read()
 
+=======
+        if hasattr(response, "iter_bytes"):
+            return b"".join(chunk for chunk in response.iter_bytes())
+        if hasattr(response, "content"):
+            return response.content
+        if hasattr(response, "read"):
+            return response.read()
+
+>>>>>>> parent of 7feebfe (name mentioned)
         raise TTSGenerationError(f"Unknown Groq response type: {type(response)}")
     except Exception as exc:
         raise TTSGenerationError(f"Groq TTS generation failed: {exc}") from exc
@@ -104,6 +126,9 @@ def build_audio_stream_url(response_obj, request_obj=None):
     if request_obj:
         return request_obj.build_absolute_uri(path)
     return path
+<<<<<<< HEAD
+>>>>>>> parent of 7feebfe (name mentioned)
+=======
 >>>>>>> parent of 7feebfe (name mentioned)
 
 
@@ -190,14 +215,20 @@ class InterviewStep(APIView):
                 session.completed = True
                 session.save()
 <<<<<<< HEAD
+<<<<<<< HEAD
                 audio_payload = text_to_speech(interviewer_text, request_obj=request)
 =======
+=======
+>>>>>>> parent of 7feebfe (name mentioned)
                 exit_response = InterviewResponse.objects.create(
                     session=session,
                     step="Exit",
                     question=interviewer_text,
                 )
                 audio_url = build_audio_stream_url(exit_response, request)
+<<<<<<< HEAD
+>>>>>>> parent of 7feebfe (name mentioned)
+=======
 >>>>>>> parent of 7feebfe (name mentioned)
 
                 return Response({
@@ -213,10 +244,13 @@ class InterviewStep(APIView):
                 })
 
 <<<<<<< HEAD
+<<<<<<< HEAD
             # 🗣️ Store interviewer question and convert to speech
             InterviewResponse.objects.create(session=session, step=current_step, question=interviewer_text)
             audio_payload = text_to_speech(interviewer_text, request_obj=request)
 =======
+=======
+>>>>>>> parent of 7feebfe (name mentioned)
             # Store interviewer question and convert to speech
             interview_response = InterviewResponse.objects.create(
                 session=session,
@@ -224,6 +258,9 @@ class InterviewStep(APIView):
                 question=interviewer_text,
             )
             audio_url = build_audio_stream_url(interview_response, request)
+<<<<<<< HEAD
+>>>>>>> parent of 7feebfe (name mentioned)
+=======
 >>>>>>> parent of 7feebfe (name mentioned)
 
             # Move to next step if section done
