@@ -690,6 +690,8 @@ SkinnedMeshRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -712,6 +714,7 @@ SkinnedMeshRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
@@ -998,7 +1001,6 @@ GameObject:
   m_Component:
   - component: {fileID: 8175005564100756864}
   - component: {fileID: 1125972776927458082}
-  - component: {fileID: 1692751804782351730}
   m_Layer: 0
   m_Name: TrendyLongSleevesShirt_v01_7902_Shape
   m_TagString: Untagged
@@ -1041,6 +1043,8 @@ SkinnedMeshRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -1062,6 +1066,7 @@ SkinnedMeshRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
@@ -1178,20 +1183,6 @@ SkinnedMeshRenderer:
     m_Center: {x: -0.0005066991, y: 0.052496623, z: 1.2224675}
     m_Extent: {x: 0.62538385, y: 0.17285705, z: 0.29152095}
   m_DirtyAABB: 0
---- !u!114 &1692751804782351730
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 854337078958367097}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 21105edb015c77241b0e053c96349540, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PhonemeBridge
-  phenomes: {fileID: 0}
-  interviewerController: {fileID: 0}
 --- !u!1 &1008516328786729693
 GameObject:
   m_ObjectHideFlags: 0
@@ -1497,6 +1488,8 @@ SkinnedMeshRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -1521,6 +1514,7 @@ SkinnedMeshRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
@@ -1948,6 +1942,8 @@ SkinnedMeshRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -1969,6 +1965,7 @@ SkinnedMeshRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
@@ -2752,6 +2749,8 @@ SkinnedMeshRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -2774,6 +2773,7 @@ SkinnedMeshRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
@@ -4371,6 +4371,8 @@ SkinnedMeshRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -4393,6 +4395,7 @@ SkinnedMeshRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
@@ -5296,7 +5299,6 @@ GameObject:
   - component: {fileID: 3355453632362936498}
   - component: {fileID: 4260082591169824278}
   - component: {fileID: 73824879945379527}
-  - component: {fileID: 3761475688371937345}
   m_Layer: 0
   m_Name: CC_Base_Body
   m_TagString: Untagged
@@ -5339,6 +5341,8 @@ SkinnedMeshRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -5365,6 +5369,7 @@ SkinnedMeshRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
@@ -5550,20 +5555,6 @@ SkinnedMeshRenderer:
     m_Extent: {x: 0.76994574, y: 0.19102557, z: 0.8357846}
   m_DirtyAABB: 0
 --- !u!114 &73824879945379527
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7337745023685543672}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 21105edb015c77241b0e053c96349540, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PhonemeBridge
-  phenomes: {fileID: 4967962300391200662}
-  interviewerController: {fileID: 5699317208410475493}
---- !u!114 &3761475688371937345
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -5866,52 +5857,6 @@ Transform:
   - {fileID: 3655396795933246721}
   m_Father: {fileID: 7627283609994336598}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &8032563026259455813
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 7044644876918218238}
-  - component: {fileID: 2705947796653194588}
-  m_Layer: 0
-  m_Name: LipSyncBridge
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &7044644876918218238
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8032563026259455813}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 8304402001623450049}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2705947796653194588
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8032563026259455813}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 21105edb015c77241b0e053c96349540, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PhonemeBridge
-  phenomes: {fileID: 4967962300391200662}
-  interviewerController: {fileID: 5699317208410475493}
 --- !u!1 &8058843223374962174
 GameObject:
   m_ObjectHideFlags: 0
@@ -6640,7 +6585,6 @@ GameObject:
   - component: {fileID: 5699317208410475493}
   - component: {fileID: 4967962300391200662}
   - component: {fileID: 259135825723235804}
-  - component: {fileID: 5438119005589087700}
   m_Layer: 0
   m_Name: JakeExportered
   m_TagString: Untagged
@@ -6658,8 +6602,8 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1.5, y: 1.5, z: 1.5}
-  m_ConstrainProportionsScale: 1
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 6296796202132828293}
   - {fileID: 2287395927437156048}
@@ -6677,7 +6621,6 @@ Transform:
   - {fileID: 6046227554140747473}
   - {fileID: 2590148079358338273}
   - {fileID: 6258225524739317178}
-  - {fileID: 7044644876918218238}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!95 &2746342434733666364
@@ -6691,7 +6634,7 @@ Animator:
   m_Enabled: 1
   m_Avatar: {fileID: 9000000, guid: 0260137114e911548bde7537bded215f, type: 3}
   m_Controller: {fileID: 9100000, guid: 5faa49f199f7d464384e6770d51c4f21, type: 2}
-  m_CullingMode: 0
+  m_CullingMode: 1
   m_UpdateMode: 0
   m_ApplyRootMotion: 0
   m_LinearVelocityBlending: 0
@@ -6766,9 +6709,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d3a81e513a8ce4f8684503c32899a6e9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TestPhenomes
-  currentMouthCode: 23
-  sentence: osp
-  speedMultiplier: 2.4
+  currentMouthCode: 0
+  sentence: WWW
+  speedMultiplier: 2
 --- !u!114 &259135825723235804
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6789,20 +6732,6 @@ MonoBehaviour:
   - m_Rig: {fileID: 6519565241532195819}
     m_Active: 1
   m_Effectors: []
---- !u!114 &5438119005589087700
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9204635582409764166}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 21105edb015c77241b0e053c96349540, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PhonemeBridge
-  phenomes: {fileID: 4967962300391200662}
-  interviewerController: {fileID: 5699317208410475493}
 --- !u!1 &9210411353475083962
 GameObject:
   m_ObjectHideFlags: 0
@@ -6887,6 +6816,8 @@ SkinnedMeshRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -6911,6 +6842,7 @@ SkinnedMeshRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
