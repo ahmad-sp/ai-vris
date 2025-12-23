@@ -57,11 +57,19 @@ def ask_llm(prompt):
         return "Let's continue with the next question."
 
 
-def generate_interviewer_text(role, current_step, previous_answer=None, resume_summary=None):
+def generate_interviewer_text(
+    role,
+    current_step,
+    previous_answer=None,
+    resume_summary=None,
+    candidate_name=None,
+):
     """Generate context-aware interviewer questions dynamically."""
+    candidate_context = f"Candidate: {candidate_name}\n" if candidate_name else ""
     role_context = (
         f"You are Jake, a professional interviewer conducting a structured job interview.\n"
         f"Position: {role}\n"
+        f"{candidate_context}"
         f"Current Section: {current_step}\n\n"
         "INTERVIEW GUIDELINES:\n"
         "- Maintain a professional, composed, and encouraging tone\n"
@@ -75,14 +83,25 @@ def generate_interviewer_text(role, current_step, previous_answer=None, resume_s
 
     # 1. Greeting / Introduction
     if current_step.lower() in ["greeting", "introduction"] and not previous_answer:
+        intro_instructions = (
+            "Begin the interview with a professional greeting and introduce yourself briefly.\n"
+            "Then ask an opening question to learn about the candidate's background.\n\n"
+            "Keep the greeting warm but professional. The opening question should invite the candidate\n"
+            "to share their professional background and what brings them to this opportunity."
+        )
+
+        if candidate_name:
+            intro_instructions = (
+                f"Begin the interview with a professional greeting that addresses {candidate_name} by name and introduce yourself briefly.\n"
+                "Then ask an opening question to learn about the candidate's background.\n\n"
+                "Keep the greeting warm but professional. The opening question should invite the candidate\n"
+                "to share their professional background and what brings them to this opportunity."
+            )
+
         prompt = f"""
 {role_context}
 
-Begin the interview with a professional greeting and introduce yourself briefly.
-Then ask an opening question to learn about the candidate's background.
-
-Keep the greeting warm but professional. The opening question should invite the candidate
-to share their professional background and what brings them to this opportunity.
+{intro_instructions}
 """
         return ask_llm(prompt)
 

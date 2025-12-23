@@ -1,16 +1,5 @@
 from django.urls import path
-from .views import (
-    InterviewStep,
-    RestartInterviewView,
-    SessionList,
-    SessionDetail,
-    AudioToTextView,
-    InterruptInterviewView,
-    ResumeUploadView,
-    ReportsList,
-    ReportDetail,
-    InterviewResponseAudioView,
-)
+from .views import InterviewStep, RestartInterviewView, SessionList, SessionDetail, AudioToTextView, InterruptInterviewView, ResumeUploadView, ReportsList, ReportDetail
 
 urlpatterns = [
     path("interview/", InterviewStep.as_view(), name="interview"),
@@ -19,7 +8,6 @@ urlpatterns = [
     path("interview/sessions/", SessionList.as_view(), name="interview-sessions"),
     path("interview/sessions/<int:session_id>/", SessionDetail.as_view(), name="interview-session-detail"),
     path("audio-to-text/", AudioToTextView.as_view(), name="audio_to_text"),
-    path("interview/responses/<int:response_id>/audio/", InterviewResponseAudioView.as_view(), name="interview-response-audio"),
     path("resume-upload/", ResumeUploadView.as_view(), name="resume-upload"),
     path("reports/", ReportsList.as_view(), name="reports-list"),
     path("reports/<int:session_id>/", ReportDetail.as_view(), name="report-detail"),
