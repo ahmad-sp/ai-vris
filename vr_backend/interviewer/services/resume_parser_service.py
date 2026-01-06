@@ -1,11 +1,9 @@
 import os
-import google.generativeai as genai
-from django.conf import settings
+from groq import Groq
 from PyPDF2 import PdfReader
 import io
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-genai.configure(api_key=GEMINI_API_KEY)
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 
 def extract_text_from_pdf(pdf_file):
@@ -21,40 +19,56 @@ def extract_text_from_pdf(pdf_file):
         return None
 
 
-def parse_resume_with_gemini(resume_text, role):
-    """Use Gemini to extract and summarize resume details based on role."""
+def parse_resume_with_groq(resume_text, role):
+    """Use Groq to extract and summarize resume details based on role."""
     try:
-        model = genai.GenerativeModel('models/gemini-2.5-flash')
-        
+        if not GROQ_API_KEY:
+            print("Groq parsing error: GROQ_API_KEY is not set")
+            return None
+
+        client = Groq(api_key=GROQ_API_KEY)
+
         prompt = f"""
-        You are an expert resume analyzer. Analyze the following resume and extract key information 
-        relevant to the role of {role}. 
-        
-        Resume text:
-        {resume_text}
-        
-        Please provide a structured summary including:
-        1. Key skills and technical proficiencies
-        2. Work experience relevant to {role}
-        3. Educational background
-        4. Notable achievements or projects
-        5. Areas of expertise that match {role} requirements
-        
-        Format the response as a concise summary that will help generate relevant interview questions.
-        Focus on information most relevant to the {role} position.
-        Keep the summary under 500 words.
-        """
-        
-        response = model.generate_content(prompt)
-        return response.text.strip()
-        
+You are an expert resume analyzer. Analyze the following resume and extract key information
+relevant to the role of {role}.
+
+Resume text:
+{resume_text}
+
+Please provide a structured summary including:
+1. Key skills and technical proficiencies
+2. Work experience relevant to {role}
+3. Educational background
+4. Notable achievements or projects
+5. Areas of expertise that match {role} requirements
+
+Format the response as a concise summary that will help generate relevant interview questions.
+Focus on information most relevant to the {role} position.
+Keep the summary under 500 words.
+""".strip()
+
+        completion = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a precise resume analyzer. Output only the requested summary.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.2,
+        )
+
+        content = (completion.choices[0].message.content or "").strip()
+        return content or None
+
     except Exception as e:
-        print(f"Gemini parsing error: {str(e)}")
+        print(f"Groq parsing error: {str(e)}")
         return None
 
 
 def process_resume_upload(pdf_file, role):
-    """Complete pipeline: PDF -> Text extraction -> Gemini parsing -> Summary."""
+    """Complete pipeline: PDF -> Text extraction -> Groq parsing -> Summary."""
     try:
         print(f"[ResumeParser] Starting resume processing for role: {role}")
         
@@ -67,12 +81,12 @@ def process_resume_upload(pdf_file, role):
         
         print(f"[ResumeParser] Successfully extracted {len(resume_text)} characters from PDF")
         
-        # Step 2: Parse and summarize with Gemini
-        print("[ResumeParser] Step 2: Parsing with Gemini...")
-        resume_summary = parse_resume_with_gemini(resume_text, role)
+        # Step 2: Parse and summarize with Groq
+        print("[ResumeParser] Step 2: Parsing with Groq...")
+        resume_summary = parse_resume_with_groq(resume_text, role)
         if not resume_summary:
-            print("[ResumeParser] ERROR: Failed to parse resume with Gemini")
-            return {"error": "Failed to parse resume with Gemini"}
+            print("[ResumeParser] ERROR: Failed to parse resume with Groq")
+            return {"error": "Failed to parse resume with Groq"}
         
         print(f"[ResumeParser] Successfully generated summary with {len(resume_summary)} characters")
         

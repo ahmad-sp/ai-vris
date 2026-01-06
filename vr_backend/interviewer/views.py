@@ -61,9 +61,9 @@ def text_to_speech_bytes(text):
 
     try:
         response = client.audio.speech.create(
-            model="playai-tts",
-            voice="Chip-PlayAI",
-            response_format="mp3",
+            model="canopylabs/orpheus-v1-english",
+            voice="austin",
+            response_format="wav",
             input=text,
         )
         return _groq_tts_response_to_bytes(response)

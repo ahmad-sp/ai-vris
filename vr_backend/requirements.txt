@@ -9,6 +9,5 @@ dj-database-url
 whitenoise
 PyPDF2
 requests
-google-generativeai
 google-cloud-speech
 groq
