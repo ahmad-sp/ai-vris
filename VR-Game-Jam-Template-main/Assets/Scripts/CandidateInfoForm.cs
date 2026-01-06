@@ -498,7 +498,7 @@ public class CandidateInfoForm : MonoBehaviour
 
     private System.Collections.IEnumerator DownloadAndPlay(string url)
     {
-        using (var req = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.MPEG))
+        using (var req = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.WAV))
         {
             yield return req.SendWebRequest();
             if (req.result != UnityWebRequest.Result.Success)
@@ -523,10 +523,10 @@ public class CandidateInfoForm : MonoBehaviour
             yield break;
         }
 
-        byte[] mp3Bytes = null;
+        byte[] wavBytes = null;
         try
         {
-            mp3Bytes = Convert.FromBase64String(audioBase64);
+            wavBytes = Convert.FromBase64String(audioBase64);
         }
         catch (Exception ex)
         {
@@ -534,16 +534,16 @@ public class CandidateInfoForm : MonoBehaviour
             yield break;
         }
 
-        Debug.Log($"[CandidateInfoForm] Audio received (base64). bytes={mp3Bytes.Length}");
+        Debug.Log($"[CandidateInfoForm] Audio received (base64). bytes={wavBytes.Length}");
 
-        string filePath = Path.Combine(Application.persistentDataPath, $"tts_{DateTime.UtcNow.Ticks}.mp3");
+        string filePath = Path.Combine(Application.persistentDataPath, $"tts_{DateTime.UtcNow.Ticks}.wav");
         try
         {
-            File.WriteAllBytes(filePath, mp3Bytes);
+            File.WriteAllBytes(filePath, wavBytes);
         }
         catch (Exception ex)
         {
-            Debug.LogError("[CandidateInfoForm] Failed to write mp3 to persistentDataPath: " + ex.Message);
+            Debug.LogError("[CandidateInfoForm] Failed to write wav to persistentDataPath: " + ex.Message);
             yield break;
         }
 
@@ -558,12 +558,12 @@ public class CandidateInfoForm : MonoBehaviour
             yield break;
         }
 
-        using (var req = UnityWebRequestMultimedia.GetAudioClip(fileUri, AudioType.MPEG))
+        using (var req = UnityWebRequestMultimedia.GetAudioClip(fileUri, AudioType.WAV))
         {
             yield return req.SendWebRequest();
             if (req.result != UnityWebRequest.Result.Success)
             {
-                Debug.LogError("[CandidateInfoForm] Failed to load local TTS mp3: " + req.error + " uri=" + fileUri);
+                Debug.LogError("[CandidateInfoForm] Failed to load local TTS wav: " + req.error + " uri=" + fileUri);
                 yield break;
             }
 

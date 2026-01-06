@@ -54,7 +54,7 @@ def _groq_tts_response_to_bytes(response):
 
 
 def text_to_speech_bytes(text):
-    """Convert interviewer text to speech using Groq PlayAI and return raw MP3 bytes."""
+    """Convert interviewer text to speech using Groq PlayAI and return raw WAV bytes."""
     if not GROQ_API_KEY:
         print("⚠️ Missing Groq API Key.")
         return None
@@ -124,6 +124,7 @@ class InterviewStep(APIView):
                     "question": "Interview already completed.",
                     "audio_url": None,
                     "audio_base64": None,
+                    "audio_format": None,
                     "remaining_sections": 0,
                     "remaining_questions": 0,
                     "report_url": request.build_absolute_uri(f"/api/reports/{session.id}/"),
@@ -172,6 +173,7 @@ class InterviewStep(APIView):
                     "question": interviewer_text,
                     "audio_url": None,
                     "audio_base64": audio_base64,
+                    "audio_format": "wav" if audio_base64 else None,
                     "remaining_sections": 0,
                     "remaining_questions": 0,
                     "report_url": request.build_absolute_uri(f"/api/reports/{session.id}/"),
@@ -209,6 +211,7 @@ class InterviewStep(APIView):
                 "question": interviewer_text,
                 "audio_url": None,
                 "audio_base64": audio_base64,
+                    "audio_format": "wav" if audio_base64 else None,
                 "remaining_sections": remaining_sections,
                 "remaining_questions": remaining_questions,
                 "report_url": report_url,
