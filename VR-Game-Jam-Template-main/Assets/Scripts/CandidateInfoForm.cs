@@ -504,6 +504,45 @@ public class CandidateInfoForm : MonoBehaviour
         }
     }
 
+<<<<<<< Updated upstream
+=======
+    private System.Collections.IEnumerator PlayAudioFromBase64(string audioBase64)
+    {
+        if (string.IsNullOrEmpty(audioBase64))
+        {
+            Debug.LogWarning("[CandidateInfoForm] audio_base64 was empty, nothing to play.");
+            yield break;
+        }
+
+        byte[] wavBytes = null;
+        try
+        {
+            wavBytes = Convert.FromBase64String(audioBase64);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("[CandidateInfoForm] Failed to decode audio_base64: " + ex.Message);
+            yield break;
+        }
+
+        Debug.Log($"[CandidateInfoForm] Audio received (base64). bytes={wavBytes.Length}");
+
+        // Load WAV directly from bytes using custom loader
+        AudioClip clip = LoadWav.FromBytes(wavBytes, "CandidateQuestion");
+        if (clip == null)
+        {
+            Debug.LogError("[CandidateInfoForm] Failed to load WAV from bytes.");
+            yield break;
+        }
+
+        Debug.Log($"[CandidateInfoForm] Audio clip loaded. samples={clip.samples} length={clip.length:F2}s channels={clip.channels}");
+        questionAudioSource.clip = clip;
+        questionAudioSource.Play();
+        while (questionAudioSource.isPlaying)
+            yield return null;
+    }
+
+>>>>>>> Stashed changes
     private void StartListening()
     {
         if (voiceRecorder != null)

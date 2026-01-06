@@ -698,6 +698,52 @@ public class InterviewSessionManager : MonoBehaviour
         }
     }
 
+<<<<<<< Updated upstream
+=======
+    private IEnumerator PlayAudioFromBase64(string audioBase64)
+    {
+        if (string.IsNullOrEmpty(audioBase64))
+        {
+            Debug.LogWarning("[Interview] audio_base64 was empty, nothing to play.");
+            yield break;
+        }
+
+        byte[] wavBytes = null;
+        try
+        {
+            wavBytes = Convert.FromBase64String(audioBase64);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("[Interview] Failed to decode audio_base64: " + ex.Message);
+            yield break;
+        }
+
+        Debug.Log($"[Interview] Audio received (base64). bytes={wavBytes.Length}");
+
+        // Load WAV directly from bytes using custom loader
+        AudioClip clip = LoadWav.FromBytes(wavBytes, "InterviewQuestion");
+        if (clip == null)
+        {
+            Debug.LogError("[Interview] Failed to load WAV from bytes.");
+            yield break;
+        }
+
+        Debug.Log($"[Interview] Audio clip loaded. samples={clip.samples} length={clip.length:F2}s channels={clip.channels}");
+        questionAudioSource.clip = clip;
+        questionAudioSource.Play();
+
+        // Trigger lip sync
+        if (phenomesOutput != null && !string.IsNullOrEmpty(currentQuestion))
+        {
+            phenomesOutput.PlaySentence(currentQuestion);
+        }
+
+        while (questionAudioSource.isPlaying)
+            yield return null;
+    }
+
+>>>>>>> Stashed changes
     // Call from Unity UI button to end interview early and generate report
     public void EndInterview()
     {
