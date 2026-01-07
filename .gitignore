@@ -2,3 +2,4 @@ vr_backend/db.sqlite3
 *.sqlite3
 vr_backend/db.sqlite3
 vr_backend/db.sqlite3
+/vr_backend/interviewer/__pycache__
