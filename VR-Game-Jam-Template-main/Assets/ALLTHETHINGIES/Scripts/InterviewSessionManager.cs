@@ -703,7 +703,7 @@ public class InterviewSessionManager : MonoBehaviour
 
     private IEnumerator DownloadAndPlay(string url)
     {
-        using (var req = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.WAV))
+        using (var req = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.MPEG))
         {
             yield return req.SendWebRequest();
             if (req.result != UnityWebRequest.Result.Success)
@@ -736,10 +736,10 @@ public class InterviewSessionManager : MonoBehaviour
             yield break;
         }
 
-        byte[] wavBytes = null;
+        byte[] mp3Bytes = null;
         try
         {
-            wavBytes = Convert.FromBase64String(audioBase64);
+            mp3Bytes = Convert.FromBase64String(audioBase64);
         }
         catch (Exception ex)
         {
@@ -747,16 +747,16 @@ public class InterviewSessionManager : MonoBehaviour
             yield break;
         }
 
-        Debug.Log($"[Interview] Audio received (base64). bytes={wavBytes.Length}");
+        Debug.Log($"[Interview] Audio received (base64). bytes={mp3Bytes.Length}");
 
-        string filePath = Path.Combine(Application.persistentDataPath, $"tts_{DateTime.UtcNow.Ticks}.wav");
+        string filePath = Path.Combine(Application.persistentDataPath, $"tts_{DateTime.UtcNow.Ticks}.mp3");
         try
         {
-            File.WriteAllBytes(filePath, wavBytes);
+            File.WriteAllBytes(filePath, mp3Bytes);
         }
         catch (Exception ex)
         {
-            Debug.LogError("[Interview] Failed to write wav to persistentDataPath: " + ex.Message);
+            Debug.LogError("[Interview] Failed to write mp3 to persistentDataPath: " + ex.Message);
             yield break;
         }
 
@@ -771,12 +771,12 @@ public class InterviewSessionManager : MonoBehaviour
             yield break;
         }
 
-        using (var req = UnityWebRequestMultimedia.GetAudioClip(fileUri, AudioType.WAV))
+        using (var req = UnityWebRequestMultimedia.GetAudioClip(fileUri, AudioType.MPEG))
         {
             yield return req.SendWebRequest();
             if (req.result != UnityWebRequest.Result.Success)
             {
-                Debug.LogError("[Interview] Failed to load local TTS wav: " + req.error + " uri=" + fileUri);
+                Debug.LogError("[Interview] Failed to load local TTS mp3: " + req.error + " uri=" + fileUri);
                 yield break;
             }
 
