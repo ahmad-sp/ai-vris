@@ -61,9 +61,9 @@ def text_to_speech_bytes(text):
 
     try:
         response = client.audio.speech.create(
-            model="playai-tts",
-            voice="Chip-PlayAI",
-            response_format="mp3",
+            model="canopylabs/orpheus-v1-english",
+            voice="austin",
+            response_format="wav",
             input=text,
         )
         return _groq_tts_response_to_bytes(response)
@@ -71,7 +71,25 @@ def text_to_speech_bytes(text):
         print("🛑 Groq TTS Error:", e)
         return None
 
+def _save_groq_tts_wav(audio_bytes: bytes, *, session_id=None, step=None):
+    if not audio_bytes:
+        return None, None
+    try:
+        base_dir = Path(settings.MEDIA_ROOT) / "groq_tts"
+        base_dir.mkdir(parents=True, exist_ok=True)
 
+        safe_step = _safe_filename_component(step)
+        safe_session = _safe_filename_component(session_id)
+        filename = f"tts_{safe_session}_{safe_step}_{int(time.time() * 1000)}.wav"
+        file_path = base_dir / filename
+        file_path.write_bytes(audio_bytes)
+
+        rel_path = f"groq_tts/{filename}"
+        return str(file_path), rel_path
+    except Exception as e:
+        print(f"🛑 Error saving Groq TTS WAV: {e}")
+        return None, None
+        
 class InterviewStep(APIView):
     """Main endpoint controlling each voice-driven interview step."""
 

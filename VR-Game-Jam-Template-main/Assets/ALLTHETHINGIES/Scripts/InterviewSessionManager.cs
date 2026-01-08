@@ -703,7 +703,7 @@ public class InterviewSessionManager : MonoBehaviour
 
     private IEnumerator DownloadAndPlay(string url)
     {
-        using (var req = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.MPEG))
+        using (var req = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.WAV))
         {
             yield return req.SendWebRequest();
             if (req.result != UnityWebRequest.Result.Success)
@@ -713,8 +713,21 @@ public class InterviewSessionManager : MonoBehaviour
             else
             {
                 var clip = DownloadHandlerAudioClip.GetContent(req);
-                questionAudioSource.clip = clip;
-                questionAudioSource.Play();
+                
+                if (questionAudioSource != null)
+                {
+                    if (!questionAudioSource.gameObject.activeInHierarchy)
+                        questionAudioSource.gameObject.SetActive(true);
+                        
+                    questionAudioSource.clip = clip;
+                    questionAudioSource.enabled = true;
+                    questionAudioSource.Play();
+                }
+                else
+                {
+                     Debug.LogError("[Interview] questionAudioSource is NULL in DownloadAndPlay");
+                     yield break;
+                }
                 
                 // Trigger lip sync
                 if (phenomesOutput != null && !string.IsNullOrEmpty(currentQuestion))
@@ -736,10 +749,10 @@ public class InterviewSessionManager : MonoBehaviour
             yield break;
         }
 
-        byte[] mp3Bytes = null;
+        byte[] audioBytes = null;
         try
         {
-            mp3Bytes = Convert.FromBase64String(audioBase64);
+            audioBytes = Convert.FromBase64String(audioBase64);
         }
         catch (Exception ex)
         {
@@ -747,16 +760,16 @@ public class InterviewSessionManager : MonoBehaviour
             yield break;
         }
 
-        Debug.Log($"[Interview] Audio received (base64). bytes={mp3Bytes.Length}");
+        Debug.Log($"[Interview] Audio received (base64). bytes={audioBytes.Length}");
 
-        string filePath = Path.Combine(Application.persistentDataPath, $"tts_{DateTime.UtcNow.Ticks}.mp3");
+        string filePath = Path.Combine(Application.persistentDataPath, $"tts_{DateTime.UtcNow.Ticks}.wav");
         try
         {
-            File.WriteAllBytes(filePath, mp3Bytes);
+            File.WriteAllBytes(filePath, audioBytes);
         }
         catch (Exception ex)
         {
-            Debug.LogError("[Interview] Failed to write mp3 to persistentDataPath: " + ex.Message);
+            Debug.LogError("[Interview] Failed to write WAV to persistentDataPath: " + ex.Message);
             yield break;
         }
 
@@ -771,12 +784,12 @@ public class InterviewSessionManager : MonoBehaviour
             yield break;
         }
 
-        using (var req = UnityWebRequestMultimedia.GetAudioClip(fileUri, AudioType.MPEG))
+        using (var req = UnityWebRequestMultimedia.GetAudioClip(fileUri, AudioType.WAV))
         {
             yield return req.SendWebRequest();
             if (req.result != UnityWebRequest.Result.Success)
             {
-                Debug.LogError("[Interview] Failed to load local TTS mp3: " + req.error + " uri=" + fileUri);
+                Debug.LogError("[Interview] Failed to load local TTS WAV: " + req.error + " uri=" + fileUri);
                 yield break;
             }
 
@@ -788,8 +801,22 @@ public class InterviewSessionManager : MonoBehaviour
             }
 
             Debug.Log($"[Interview] Audio clip loaded. samples={clip.samples} length={clip.length:F2}s channels={clip.channels}");
-            questionAudioSource.clip = clip;
-            questionAudioSource.Play();
+            
+            // Safety check for AudioSource
+            if (questionAudioSource != null)
+            {
+                // Ensure GameObject is active
+                if (!questionAudioSource.gameObject.activeInHierarchy)
+                    questionAudioSource.gameObject.SetActive(true);
+                    
+                questionAudioSource.clip = clip;
+                questionAudioSource.enabled = true;
+                questionAudioSource.Play();
+            }
+            else
+            {
+                Debug.LogError("[Interview] questionAudioSource is NULL!");
+            }
 
             // Trigger lip sync
             if (phenomesOutput != null && !string.IsNullOrEmpty(currentQuestion))
