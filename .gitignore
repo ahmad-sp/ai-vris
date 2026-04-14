@@ -1,4 +1,5 @@
 vr_backend/db.sqlite3
+.env
 *.sqlite3
 vr_backend/db.sqlite3
 vr_backend/db.sqlite3
