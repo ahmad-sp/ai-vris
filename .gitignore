@@ -1,5 +1,6 @@
 vr_backend/db.sqlite3
 .env
+gcp.json
 *.sqlite3
 vr_backend/db.sqlite3
 vr_backend/db.sqlite3
